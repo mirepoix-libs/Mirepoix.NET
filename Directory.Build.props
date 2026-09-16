@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <Authors>mirepoix-libs</Authors>
+    <Company>mirepoix-libs</Company>
+    <Copyright>Copyright (c) 2026 mirepoix-libs</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/mirepoix-libs/Mirepoix.NET</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mirepoix-libs/Mirepoix.NET</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,78 @@
+name: Publish AccessControl
+
+on:
+  push:
+    tags:
+      - 'prerelease/v*'
+      - 'release/v*'
+
+permissions:
+  contents: read
+  id-token: write # OIDC for nuget.org Trusted Publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Parse version from tag
+        id: ver
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" =~ ^(prerelease|release)/v(.+)$ ]]; then
+            VER="${BASH_REMATCH[2]}"
+          else
+            echo "Tag must look like prerelease/v0.1.0-preview.1 or release/v0.1.0, got: $TAG"
+            exit 1
+          fi
+          if [[ -z "$VER" ]]; then
+            echo "Empty version in tag: $TAG"
+            exit 1
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Publishing version $VER (from $TAG)"
+
+      - name: Build
+        run: dotnet build Mirepoix.NET.sln -c Release -p:Version=${{ steps.ver.outputs.version }}
+
+      - name: Test
+        run: dotnet test Mirepoix.NET.sln -c Release --no-build --verbosity normal
+
+      - name: Pack
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/nuget"
+          projects=(
+            Mirepoix.AccessControl/Mirepoix.AccessControl.csproj
+            Mirepoix.AccessControl.Engine/Mirepoix.AccessControl.Engine.csproj
+            Mirepoix.AccessControl.Hosting/Mirepoix.AccessControl.Hosting.csproj
+            Mirepoix.AccessControl.Providers/Mirepoix.AccessControl.Providers.csproj
+            Mirepoix.AccessControl.Providers.SqlServer/Mirepoix.AccessControl.Providers.SqlServer.csproj
+            Mirepoix.AccessControl.Providers.EntityFrameworkCore/Mirepoix.AccessControl.Providers.EntityFrameworkCore.csproj
+          )
+          for p in "${projects[@]}"; do
+            dotnet pack "$p" -c Release --no-build \
+              -p:Version=${{ steps.ver.outputs.version }} \
+              -p:PackageVersion=${{ steps.ver.outputs.version }} \
+              -o "$GITHUB_WORKSPACE/artifacts/nuget"
+          done
+
+      - name: NuGet login (OIDC → temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          # nuget.org profile username, NOT email
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        run: |
+          dotnet nuget push "$GITHUB_WORKSPACE/artifacts/nuget/"*.nupkg \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
