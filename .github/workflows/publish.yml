@@ -39,11 +39,18 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "Publishing version $VER (from $TAG)"
 
-      - name: Build
-        run: dotnet build Mirepoix.NET.sln -c Release -p:Version=${{ steps.ver.outputs.version }}
-
       - name: Test
-        run: dotnet test Mirepoix.NET.sln -c Release --no-build --verbosity normal
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          mapfile -d '' -t tests < <(find . -name '*.Tests.csproj' -print0)
+          if [[ ${#tests[@]} -eq 0 ]]; then
+            echo "No *.Tests.csproj projects found"
+            exit 1
+          fi
+          for p in "${tests[@]}"; do
+            echo "Testing $p"
+            dotnet test "$p" -c Release -p:Version="$VER" --verbosity normal
+          done
 
       - name: Pack
         run: |
@@ -57,7 +64,7 @@ jobs:
             Mirepoix.AccessControl.Providers.EntityFrameworkCore/Mirepoix.AccessControl.Providers.EntityFrameworkCore.csproj
           )
           for p in "${projects[@]}"; do
-            dotnet pack "$p" -c Release --no-build \
+            dotnet pack "$p" -c Release \
               -p:Version=${{ steps.ver.outputs.version }} \
               -p:PackageVersion=${{ steps.ver.outputs.version }} \
               -o "$GITHUB_WORKSPACE/artifacts/nuget"
