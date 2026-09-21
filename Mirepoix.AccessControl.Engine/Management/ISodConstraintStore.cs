@@ -21,4 +21,24 @@ public interface ISodConstraintStore
     /// Returns all constraints (implementation may order them).
     /// </summary>
     IReadOnlyList<SodConstraint> List();
+
+    /// <summary>
+    /// Does the same as <see cref="Add"/> asynchronously.
+    /// </summary>
+    /// <param name="constraint">Constraint to store.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task AddAsync(SodConstraint constraint, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="Remove"/> asynchronously.
+    /// </summary>
+    /// <param name="id">Constraint id.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RemoveAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="List"/> asynchronously.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<SodConstraint>> ListAsync(CancellationToken cancellationToken = default);
 }

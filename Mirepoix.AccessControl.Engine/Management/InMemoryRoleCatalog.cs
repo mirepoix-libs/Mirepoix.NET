@@ -15,4 +15,22 @@ public sealed class InMemoryRoleCatalog : IRoleCatalog
 
     /// <inheritdoc />
     public IReadOnlyList<Role> List() => _roles.Values.ToList();
+
+    /// <inheritdoc />
+    public Task AddAsync(Role role, CancellationToken cancellationToken = default)
+    {
+        Add(role);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task RemoveAsync(string roleId, CancellationToken cancellationToken = default)
+    {
+        Remove(roleId);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<Role>> ListAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(List());
 }

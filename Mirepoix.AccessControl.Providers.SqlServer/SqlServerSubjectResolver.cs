@@ -5,7 +5,8 @@ namespace Mirepoix.AccessControl.Providers;
 /// <summary>
 /// Resolves subjects as an <see cref="ISubjectResolver"/> via SqlServer ADO.
 /// With empty <see cref="SqlServerProviderOptions.SubjectMapping"/>: loads from <c>ac_subject*</c>.
-/// With maps: uses <see cref="SubjectMappingLookup"/> and ADO materialization of mapped tables.
+/// With maps: uses <see cref="SubjectMappingLookup"/> and ADO materialization of mapped tables, then unions
+/// <c>ac_subject_role</c> rows when role storage remains library-owned.
 /// Validates maps with <c>requireStorageTable: true</c> at construction when maps are present.
 /// </summary>
 public sealed class SqlServerSubjectResolver : ISubjectResolver
@@ -13,6 +14,7 @@ public sealed class SqlServerSubjectResolver : ISubjectResolver
     private readonly SubjectReader _reader;
     private readonly MappedSubjectReader? _mappedReader;
     private readonly SubjectMappingOptions _subjectMapping;
+    private readonly SubjectStorageLayout _layout;
 
     /// <summary>
     /// Creates a resolver from <paramref name="options"/>.
@@ -40,10 +42,12 @@ public sealed class SqlServerSubjectResolver : ISubjectResolver
         _reader = reader;
         _mappedReader = mappedReader;
         _subjectMapping = subjectMapping;
+        _layout = SubjectStorageLayoutResolver.Resolve(subjectMapping);
     }
 
     /// <summary>
-    /// Hydrates <paramref name="partial"/> from built-in tables or mapped entities.
+    /// Hydrates <paramref name="partial"/> from built-in tables or mapped entities. Mapped layouts without
+    /// explicit role members union library-owned role rows with roles produced by the entity mapping.
     /// </summary>
     /// <param name="partial">Partial subject (id required; optional type hint attribute when mapped).</param>
     /// <param name="cancellationToken">Cancellation for SQL.</param>
@@ -57,10 +61,42 @@ public sealed class SqlServerSubjectResolver : ISubjectResolver
         if (_mappedReader is null)
             throw new InvalidOperationException("Mapped subject reader was not configured.");
 
-        return SubjectMappingLookup.HydrateAsync(
-            partial,
-            _subjectMapping,
-            (map, id, ct) => _mappedReader.ReadAsync(map, id, ct),
-            cancellationToken);
+        return HydrateMappedAsync(partial, cancellationToken);
+    }
+
+    private async Task<Subject> HydrateMappedAsync(
+        Subject partial,
+        CancellationToken cancellationToken)
+    {
+        var subject = await SubjectMappingLookup.HydrateAsync(
+                partial,
+                _subjectMapping,
+                (map, id, ct) => _mappedReader!.ReadAsync(map, id, ct),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (_layout != SubjectStorageLayout.MappedLibraryRoles)
+            return subject;
+
+        var libraryRoles = await _mappedReader!
+            .ReadRolesAsync(subject.Id, cancellationToken)
+            .ConfigureAwait(false);
+        return MergeLibraryRoles(subject, libraryRoles);
+    }
+
+    /// <summary>
+    /// Unions mapped and library-owned roles with ordinal comparison while preserving mapped attributes.
+    /// </summary>
+    internal static Subject MergeLibraryRoles(
+        Subject subject,
+        IEnumerable<string> libraryRoles)
+    {
+        var roles = new HashSet<string>(subject.Roles, StringComparer.Ordinal);
+        foreach (var role in libraryRoles)
+            roles.Add(role);
+
+        return roles.Count == subject.Roles.Count
+            ? subject
+            : subject with { Roles = roles };
     }
 }

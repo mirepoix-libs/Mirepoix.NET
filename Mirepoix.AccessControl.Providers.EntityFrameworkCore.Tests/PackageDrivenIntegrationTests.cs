@@ -55,7 +55,6 @@ public class PackageDrivenIntegrationTests
             db.Subjects.Add(new SubjectEntity
             {
                 SubjectId = "user-1",
-                Roles = { new SubjectRoleEntity { SubjectId = "user-1", Role = "EDITOR" } },
                 Attributes =
                 {
                     new SubjectAttributeEntity
@@ -66,6 +65,8 @@ public class PackageDrivenIntegrationTests
                     },
                 },
             });
+            db.SubjectRoles.Add(
+                new SubjectRoleEntity { SubjectId = "user-1", Role = "EDITOR" });
             db.ResourceAttributes.Add(new ResourceAttributeEntity
             {
                 ResourceType = "doc",

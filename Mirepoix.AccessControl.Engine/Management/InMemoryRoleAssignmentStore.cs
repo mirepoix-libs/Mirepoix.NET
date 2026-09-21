@@ -66,6 +66,21 @@ public sealed class InMemoryRoleAssignmentStore : IRoleAssignmentStore
             ? new HashSet<string>(roles)
             : new HashSet<string>();
 
+    /// <inheritdoc />
+    public Task<AssignmentResult> AssignAsync(string subjectId, string roleId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Assign(subjectId, roleId));
+
+    /// <inheritdoc />
+    public Task RevokeAsync(string subjectId, string roleId, CancellationToken cancellationToken = default)
+    {
+        Revoke(subjectId, roleId);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlySet<string>> GetRolesAsync(string subjectId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(GetRoles(subjectId));
+
     private void SyncSubject(string subjectId, IReadOnlySet<string> roles)
     {
         if (!_subjects.TryGetValue(subjectId, out var current))

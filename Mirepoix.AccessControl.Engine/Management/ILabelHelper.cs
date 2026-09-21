@@ -37,4 +37,40 @@ public interface ILabelHelper
     /// <param name="resourceId">Resource id.</param>
     /// <param name="key">Attribute key to remove.</param>
     void ClearResourceLabel(string resourceType, string resourceId, string key);
+
+    /// <summary>
+    /// Does the same as <see cref="SetSubjectLabel"/> asynchronously.
+    /// </summary>
+    /// <param name="subjectId">Subject id.</param>
+    /// <param name="key">Attribute key.</param>
+    /// <param name="value">Attribute value; may be null.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SetSubjectLabelAsync(string subjectId, string key, object? value, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="ClearSubjectLabel"/> asynchronously.
+    /// </summary>
+    /// <param name="subjectId">Subject id.</param>
+    /// <param name="key">Attribute key to remove.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ClearSubjectLabelAsync(string subjectId, string key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="SetResourceLabel"/> asynchronously.
+    /// </summary>
+    /// <param name="resourceType">Resource type.</param>
+    /// <param name="resourceId">Resource id.</param>
+    /// <param name="key">Attribute key.</param>
+    /// <param name="value">Attribute value; may be null.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SetResourceLabelAsync(string resourceType, string resourceId, string key, object? value, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="ClearResourceLabel"/> asynchronously.
+    /// </summary>
+    /// <param name="resourceType">Resource type.</param>
+    /// <param name="resourceId">Resource id.</param>
+    /// <param name="key">Attribute key to remove.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ClearResourceLabelAsync(string resourceType, string resourceId, string key, CancellationToken cancellationToken = default);
 }

@@ -21,4 +21,11 @@ public sealed class InMemoryPolicySetEditor : IPolicySetEditor
 
     /// <inheritdoc />
     public void Replace(PolicySet set) => _source.Replace(set);
+
+    /// <inheritdoc />
+    public Task ReplaceAsync(PolicySet set, CancellationToken cancellationToken = default)
+    {
+        Replace(set);
+        return Task.CompletedTask;
+    }
 }

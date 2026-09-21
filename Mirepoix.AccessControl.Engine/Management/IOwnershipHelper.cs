@@ -20,4 +20,21 @@ public interface IOwnershipHelper
     /// <param name="resourceType">Resource type.</param>
     /// <param name="resourceId">Resource id.</param>
     void ClearOwner(string resourceType, string resourceId);
+
+    /// <summary>
+    /// Does the same as <see cref="SetOwner"/> asynchronously.
+    /// </summary>
+    /// <param name="resourceType">Resource type.</param>
+    /// <param name="resourceId">Resource id.</param>
+    /// <param name="ownerSubjectId">Subject id stored as owner.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SetOwnerAsync(string resourceType, string resourceId, string ownerSubjectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="ClearOwner"/> asynchronously.
+    /// </summary>
+    /// <param name="resourceType">Resource type.</param>
+    /// <param name="resourceId">Resource id.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ClearOwnerAsync(string resourceType, string resourceId, CancellationToken cancellationToken = default);
 }

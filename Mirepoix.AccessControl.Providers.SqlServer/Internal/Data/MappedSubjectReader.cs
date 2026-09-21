@@ -2,6 +2,7 @@ using System.Data;
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
+using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers.SqlServer.Internal.Data;
 
@@ -9,6 +10,7 @@ namespace Mirepoix.AccessControl.Providers.SqlServer.Internal.Data;
 /// Fetches and materializes mapped subject entities via ADO.
 /// Table defaults to <see cref="SubjectEntityMap.ClrType"/> name; schema defaults to <c>dbo</c>.
 /// Column names come from <see cref="SubjectStorageHints.ColumnOverrides"/> or the property name.
+/// Also loads library-owned role rows for mapped layouts that retain <c>ac_subject_role</c>.
 /// Returns null when no row matches (probe miss). Bracket-escapes identifiers by doubling <c>]</c>.
 /// Id parameter is coerced to the id property's CLR type (string, Guid, or ChangeType).
 /// </summary>
@@ -54,6 +56,32 @@ internal sealed class MappedSubjectReader
             return null;
 
         return Materialize(reader, map);
+    }
+
+    /// <summary>
+    /// Loads library-owned role rows for a mapped subject without requiring an <c>ac_subject</c> header row.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ReadRolesAsync(
+        string subjectId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = _connections.Create();
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"""
+            SELECT role FROM dbo.{AccessControlSchema.SubjectRoleTable}
+            WHERE subject_id = @id
+            """;
+        command.Parameters.AddWithValue("@id", subjectId);
+
+        var roles = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            roles.Add(reader.GetString(0));
+
+        return roles;
     }
 
     /// <summary>Resolves table name from storage hints or CLR type name.</summary>

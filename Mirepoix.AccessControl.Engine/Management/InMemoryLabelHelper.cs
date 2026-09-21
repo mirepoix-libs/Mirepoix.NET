@@ -49,6 +49,34 @@ public sealed class InMemoryLabelHelper : ILabelHelper
         MutableResourceAttributes(resourceType, resourceId).Remove(key);
     }
 
+    /// <inheritdoc />
+    public Task SetSubjectLabelAsync(string subjectId, string key, object? value, CancellationToken cancellationToken = default)
+    {
+        SetSubjectLabel(subjectId, key, value);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task ClearSubjectLabelAsync(string subjectId, string key, CancellationToken cancellationToken = default)
+    {
+        ClearSubjectLabel(subjectId, key);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task SetResourceLabelAsync(string resourceType, string resourceId, string key, object? value, CancellationToken cancellationToken = default)
+    {
+        SetResourceLabel(resourceType, resourceId, key, value);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task ClearResourceLabelAsync(string resourceType, string resourceId, string key, CancellationToken cancellationToken = default)
+    {
+        ClearResourceLabel(resourceType, resourceId, key);
+        return Task.CompletedTask;
+    }
+
     private Dictionary<string, object?> MutableSubjectAttributes(string subjectId)
     {
         if (!_subjects.TryGetValue(subjectId, out var current))

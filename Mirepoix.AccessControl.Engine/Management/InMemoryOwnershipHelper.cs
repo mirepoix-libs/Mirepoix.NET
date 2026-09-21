@@ -34,6 +34,20 @@ public sealed class InMemoryOwnershipHelper : IOwnershipHelper
         MutableAttributes(resourceType, resourceId, attrs).Remove(OwnerAttributeKey);
     }
 
+    /// <inheritdoc />
+    public Task SetOwnerAsync(string resourceType, string resourceId, string ownerSubjectId, CancellationToken cancellationToken = default)
+    {
+        SetOwner(resourceType, resourceId, ownerSubjectId);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task ClearOwnerAsync(string resourceType, string resourceId, CancellationToken cancellationToken = default)
+    {
+        ClearOwner(resourceType, resourceId);
+        return Task.CompletedTask;
+    }
+
     private Dictionary<string, object?> MutableAttributes(
         string resourceType,
         string resourceId,

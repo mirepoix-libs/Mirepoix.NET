@@ -3,7 +3,8 @@ namespace Mirepoix.AccessControl.Providers;
 /// <summary>
 /// Holds ordered subject entity maps shared by durable provider adapters.
 /// Empty <see cref="Maps"/> means adapters should use built-in <c>ac_subject*</c> tables instead of mapped CLR types.
-/// Mapped mode does not merge with <c>ac_subject*</c>: either maps are configured, or the built-in path is used.
+/// Mapped mode owns subject headers and attributes in CLR storage; role-table ownership is resolved separately by
+/// <see cref="SubjectStorageLayoutResolver"/>.
 /// </summary>
 public sealed class SubjectMappingOptions
 {
@@ -83,4 +84,4 @@ public sealed class SubjectMappingOptions
         }
     }
 }
-
+

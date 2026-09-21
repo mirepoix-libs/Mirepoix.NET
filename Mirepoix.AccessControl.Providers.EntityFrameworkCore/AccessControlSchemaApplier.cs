@@ -5,8 +5,10 @@ using Mirepoix.AccessControl.Providers.Schema;
 namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
-/// Applies the embedded dialect init script for package-driven mode against <see cref="AccessControlDbContext"/>.
+/// Applies the embedded dialect schema scripts for package-driven mode against <see cref="AccessControlDbContext"/>.
 /// Resolves dialect from the EF database provider name via <see cref="AccessControlSchemaDialectMap"/>.
+/// Applies core and management scripts for every layout, subject-role DDL when library-owned, and native subject DDL
+/// only for native storage.
 /// Only SqlServer and PostgreSQL provider names are supported; other providers need app-owned migrations.
 /// Registered only by package-driven DI helpers.
 /// </summary>
@@ -24,7 +26,8 @@ public sealed class AccessControlSchemaApplier
     }
 
     /// <summary>
-    /// Opens the context connection if needed and executes each script batch for the resolved dialect.
+    /// Opens the context connection if needed and executes each ordered script batch for the resolved dialect and
+    /// configured subject-storage layout.
     /// </summary>
     /// <param name="cancellationToken">Cancellation for open/execute.</param>
     /// <exception cref="NotSupportedException">
@@ -34,19 +37,29 @@ public sealed class AccessControlSchemaApplier
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AccessControlDbContext>();
+        var options = scope.ServiceProvider.GetRequiredService<EntityFrameworkProviderOptions>();
 
         var dialect = AccessControlSchemaDialectMap.Resolve(context.Database.ProviderName);
-        var script = AccessControlSchemaScripts.Load(AccessControlSchemaDialectMap.ResourceName(dialect));
+        var layout = SubjectStorageLayoutResolver.Resolve(options.SubjectMapping);
 
         var connection = context.Database.GetDbConnection();
         if (connection.State != System.Data.ConnectionState.Open)
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        foreach (var batch in AccessControlSchemaScripts.SplitBatches(script, dialect))
+        foreach (var resourceName in ResourceNames(dialect, layout))
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText = batch;
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var script = AccessControlSchemaScripts.Load(resourceName);
+            foreach (var batch in AccessControlSchemaScripts.SplitBatches(script, dialect))
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = batch;
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
+
+    internal static IReadOnlyList<string> ResourceNames(
+        AccessControlSchemaDialect dialect,
+        SubjectStorageLayout layout) =>
+        AccessControlSchemaDialectMap.ResourceNames(dialect, layout);
 }

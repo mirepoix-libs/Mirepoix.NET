@@ -15,4 +15,22 @@ public sealed class InMemorySodConstraintStore : ISodConstraintStore
 
     /// <inheritdoc />
     public IReadOnlyList<SodConstraint> List() => _constraints.Values.OrderBy(c => c.Id).ToList();
+
+    /// <inheritdoc />
+    public Task AddAsync(SodConstraint constraint, CancellationToken cancellationToken = default)
+    {
+        Add(constraint);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task RemoveAsync(string id, CancellationToken cancellationToken = default)
+    {
+        Remove(id);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<SodConstraint>> ListAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(List());
 }

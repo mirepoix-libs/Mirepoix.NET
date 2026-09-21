@@ -21,4 +21,24 @@ public interface IRoleCatalog
     /// Returns a snapshot of all catalogued roles.
     /// </summary>
     IReadOnlyList<Role> List();
+
+    /// <summary>
+    /// Does the same as <see cref="Add"/> asynchronously.
+    /// </summary>
+    /// <param name="role">Role to store.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task AddAsync(Role role, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="Remove"/> asynchronously.
+    /// </summary>
+    /// <param name="roleId">Role id to remove.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RemoveAsync(string roleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="List"/> asynchronously.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<Role>> ListAsync(CancellationToken cancellationToken = default);
 }

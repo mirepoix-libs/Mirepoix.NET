@@ -25,13 +25,43 @@ public static class AccessControlSchemaDialectMap
     /// <summary>Names the EF Core Npgsql provider string (ordinal match in <see cref="Resolve"/>).</summary>
     public const string PostgreSqlProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL";
 
-    /// <summary>Names the manifest resource for the SqlServer init script embedded in this assembly.</summary>
-    public const string SqlServerInitResource =
+    /// <summary>Names the manifest resource for the SqlServer core schema script.</summary>
+    public const string SqlServerCoreResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.001_init.sql";
 
-    /// <summary>Names the manifest resource for the PostgreSQL init script embedded in this assembly.</summary>
-    public const string PostgreSqlInitResource =
+    /// <summary>Names the manifest resource for the SqlServer subject-role schema script.</summary>
+    public const string SqlServerSubjectRolesResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.001b_subject_roles.sql";
+
+    /// <summary>Names the manifest resource for the SqlServer management schema script.</summary>
+    public const string SqlServerManagementResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.002_management.sql";
+
+    /// <summary>Names the manifest resource for the SqlServer native-subject schema script.</summary>
+    public const string SqlServerSubjectsResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.002b_subjects.sql";
+
+    /// <summary>Names the manifest resource for the PostgreSQL core schema script.</summary>
+    public const string PostgreSqlCoreResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001_init.sql";
+
+    /// <summary>Names the manifest resource for the PostgreSQL subject-role schema script.</summary>
+    public const string PostgreSqlSubjectRolesResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001b_subject_roles.sql";
+
+    /// <summary>Names the manifest resource for the PostgreSQL management schema script.</summary>
+    public const string PostgreSqlManagementResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.002_management.sql";
+
+    /// <summary>Names the manifest resource for the PostgreSQL native-subject schema script.</summary>
+    public const string PostgreSqlSubjectsResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.002b_subjects.sql";
+
+    /// <summary>Names the SqlServer core resource for callers using the original single-script API.</summary>
+    public const string SqlServerInitResource = SqlServerCoreResource;
+
+    /// <summary>Names the PostgreSQL core resource for callers using the original single-script API.</summary>
+    public const string PostgreSqlInitResource = PostgreSqlCoreResource;
 
     /// <summary>
     /// Resolves <paramref name="providerName"/> to a dialect via ordinal equality against
@@ -64,9 +94,58 @@ public static class AccessControlSchemaDialectMap
     public static string ResourceName(AccessControlSchemaDialect dialect) =>
         dialect switch
         {
-            AccessControlSchemaDialect.SqlServer => SqlServerInitResource,
-            AccessControlSchemaDialect.PostgreSql => PostgreSqlInitResource,
+            AccessControlSchemaDialect.SqlServer => SqlServerCoreResource,
+            AccessControlSchemaDialect.PostgreSql => PostgreSqlCoreResource,
             _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, null),
         };
+
+    /// <summary>
+    /// Lists core, subject-role, management, then native-subject resource names for a dialect in schema-application
+    /// order. Callers omit subject resources according to the resolved storage layout.
+    /// </summary>
+    /// <param name="dialect">Target dialect.</param>
+    /// <returns>Ordered embedded resource names.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown for an undefined dialect value.</exception>
+    public static IReadOnlyList<string> ResourceNames(AccessControlSchemaDialect dialect) =>
+        dialect switch
+        {
+            AccessControlSchemaDialect.SqlServer =>
+                [
+                    SqlServerCoreResource,
+                    SqlServerSubjectRolesResource,
+                    SqlServerManagementResource,
+                    SqlServerSubjectsResource,
+                ],
+            AccessControlSchemaDialect.PostgreSql =>
+                [
+                    PostgreSqlCoreResource,
+                    PostgreSqlSubjectRolesResource,
+                    PostgreSqlManagementResource,
+                    PostgreSqlSubjectsResource,
+                ],
+            _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, null),
+        };
+
+    /// <summary>
+    /// Lists schema resources for <paramref name="dialect"/>, filtered to the subject storage owned by
+    /// <paramref name="layout"/>.
+    /// </summary>
+    /// <param name="dialect">Target dialect.</param>
+    /// <param name="layout">Subject and role storage owned by the library.</param>
+    /// <returns>Ordered embedded resource names required by the layout.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown for an undefined layout value.</exception>
+    public static IReadOnlyList<string> ResourceNames(
+        AccessControlSchemaDialect dialect,
+        SubjectStorageLayout layout)
+    {
+        var resources = ResourceNames(dialect);
+        return layout switch
+        {
+            SubjectStorageLayout.Native => resources,
+            SubjectStorageLayout.MappedLibraryRoles => resources.Take(3).ToArray(),
+            SubjectStorageLayout.MappedAppOwnedRoles => [resources[0], resources[2]],
+            _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, null),
+        };
+    }
 }
-
+

@@ -31,7 +31,8 @@ public sealed class EntityFrameworkProviderOptions
     /// <summary>
     /// Holds optional maps from app entity types to <see cref="Subject"/>.
     /// Empty maps mean hydrate from built-in <c>ac_subject*</c> entities.
-    /// Mapped mode does not merge with <c>ac_subject*</c>. Storage table hints are optional (EF model preferred).
+    /// Maps without explicit role members union roles from library-owned <c>ac_subject_role</c>;
+    /// maps with role members own role storage. Storage table hints are optional (EF model preferred).
     /// </summary>
     public SubjectMappingOptions SubjectMapping { get; } = new();
 

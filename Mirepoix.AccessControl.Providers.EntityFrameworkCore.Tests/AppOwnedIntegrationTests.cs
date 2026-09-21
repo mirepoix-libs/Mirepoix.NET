@@ -44,8 +44,9 @@ public class AppOwnedIntegrationTests
             db.Set<SubjectEntity>().Add(new SubjectEntity
             {
                 SubjectId = "admin-1",
-                Roles = { new SubjectRoleEntity { SubjectId = "admin-1", Role = "ADMIN" } },
             });
+            db.Set<SubjectRoleEntity>().Add(
+                new SubjectRoleEntity { SubjectId = "admin-1", Role = "ADMIN" });
             await db.SaveChangesAsync();
         }
 

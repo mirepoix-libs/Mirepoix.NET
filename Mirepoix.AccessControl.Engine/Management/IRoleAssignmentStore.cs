@@ -29,4 +29,27 @@ public interface IRoleAssignmentStore
     /// </summary>
     /// <param name="subjectId">Subject to query.</param>
     IReadOnlySet<string> GetRoles(string subjectId);
+
+    /// <summary>
+    /// Does the same as <see cref="Assign"/> asynchronously.
+    /// </summary>
+    /// <param name="subjectId">Subject receiving the role.</param>
+    /// <param name="roleId">Role to assign.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<AssignmentResult> AssignAsync(string subjectId, string roleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="Revoke"/> asynchronously.
+    /// </summary>
+    /// <param name="subjectId">Subject to update.</param>
+    /// <param name="roleId">Role to revoke.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RevokeAsync(string subjectId, string roleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Does the same as <see cref="GetRoles"/> asynchronously.
+    /// </summary>
+    /// <param name="subjectId">Subject to query.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlySet<string>> GetRolesAsync(string subjectId, CancellationToken cancellationToken = default);
 }

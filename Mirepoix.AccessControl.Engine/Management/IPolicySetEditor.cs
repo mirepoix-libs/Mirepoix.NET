@@ -12,4 +12,11 @@ public interface IPolicySetEditor
     /// </summary>
     /// <param name="set">Complete replacement set.</param>
     void Replace(PolicySet set);
+
+    /// <summary>
+    /// Does the same as <see cref="Replace"/> asynchronously.
+    /// </summary>
+    /// <param name="set">Complete replacement set.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ReplaceAsync(PolicySet set, CancellationToken cancellationToken = default);
 }
