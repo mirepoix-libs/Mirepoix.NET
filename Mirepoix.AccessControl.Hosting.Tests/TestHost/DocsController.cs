@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Mirepoix.AccessControl.Hosting;
 
 namespace Mirepoix.AccessControl.Hosting.Tests.TestHost;
 

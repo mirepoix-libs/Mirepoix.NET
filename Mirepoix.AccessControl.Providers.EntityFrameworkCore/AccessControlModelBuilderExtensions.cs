@@ -4,8 +4,19 @@ using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers;
 
+/// <summary>
+/// Maps shared <c>ac_*</c> entity types onto <see cref="AccessControlSchema"/> table/column names.
+/// Call from an app <see cref="DbContext.OnModelCreating"/> in app-owned mode, or rely on
+/// <see cref="AccessControlDbContext"/> which calls this automatically.
+/// </summary>
 public static class AccessControlModelBuilderExtensions
 {
+    /// <summary>
+    /// Configures policy set, subject, role, subject-attribute, and resource-attribute entities
+    /// (keys, column names, cascade deletes on subject children).
+    /// </summary>
+    /// <param name="modelBuilder">EF model builder.</param>
+    /// <returns><paramref name="modelBuilder"/> for chaining.</returns>
     public static ModelBuilder ApplyAccessControl(this ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

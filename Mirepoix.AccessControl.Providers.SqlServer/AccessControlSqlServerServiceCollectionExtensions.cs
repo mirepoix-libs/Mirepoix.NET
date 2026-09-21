@@ -3,11 +3,21 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
-/// DI helpers for SqlServer read/hydrate adapters.
-/// Prefer slice helpers when mixing sources; the unified helper calls all three slices.
+/// Registers SqlServer read/hydrate adapters (<see cref="IPolicySource"/>, <see cref="ISubjectResolver"/>,
+/// <see cref="IResourceResolver"/>). Prefer slice helpers when mixing sources; the unified helper calls all three slices.
+/// First successful slice registration installs shared <see cref="SqlServerProviderOptions"/> and
+/// <see cref="SqlServerSchemaMigrator"/>. Seam guards prevent silent replacement by another provider package.
+/// Also registers <see cref="IBundleHydrator"/> once as a <see cref="CompositeBundleHydrator"/> with
+/// <see cref="PassThroughContextResolver"/> when absent.
 /// </summary>
 public static class AccessControlSqlServerServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers policy + subject + resource SqlServer providers using <paramref name="options"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="options">Options including a non-empty connection string.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlProviders(
         this IServiceCollection services,
         SqlServerProviderOptions options)
@@ -22,6 +32,12 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers all three SqlServer slices after building options via <paramref name="configure"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Must set a non-empty connection string.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlProviders(
         this IServiceCollection services,
         Action<SqlServerProviderOptions> configure)
@@ -36,6 +52,12 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services.AddAccessControlProviders(options);
     }
 
+    /// <summary>
+    /// Registers <see cref="SqlServerPolicySource"/> as <see cref="IPolicySource"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="options">Options with connection string (also seeds shared options on first call).</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlPolicyProviders(
         this IServiceCollection services,
         SqlServerProviderOptions options)
@@ -55,6 +77,12 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers the policy slice with options built from <paramref name="configure"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Options configuration.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlPolicyProviders(
         this IServiceCollection services,
         Action<SqlServerProviderOptions> configure)
@@ -65,6 +93,13 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services.AddAccessControlPolicyProviders(options);
     }
 
+    /// <summary>
+    /// Registers <see cref="SqlServerSubjectResolver"/> as <see cref="ISubjectResolver"/>.
+    /// Requires shared options already registered, or pass <paramref name="options"/> with a connection string.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="options">Optional; required with connection string on first SqlServer registration.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlSubjectProviders(
         this IServiceCollection services,
         SqlServerProviderOptions? options = null)
@@ -81,6 +116,12 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers the subject slice with options built from <paramref name="configure"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Options configuration.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlSubjectProviders(
         this IServiceCollection services,
         Action<SqlServerProviderOptions> configure)
@@ -91,6 +132,12 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services.AddAccessControlSubjectProviders(options);
     }
 
+    /// <summary>
+    /// Registers <see cref="SqlServerResourceResolver"/> as <see cref="IResourceResolver"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="options">Optional; required with connection string on first SqlServer registration.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlResourceProviders(
         this IServiceCollection services,
         SqlServerProviderOptions? options = null)
@@ -107,6 +154,12 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers the resource slice with options built from <paramref name="configure"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Options configuration.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlResourceProviders(
         this IServiceCollection services,
         Action<SqlServerProviderOptions> configure)

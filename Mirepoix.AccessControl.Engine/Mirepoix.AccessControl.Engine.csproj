@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Mirepoix.AccessControl</RootNamespace>
     <AssemblyName>Mirepoix.AccessControl.Engine</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mirepoix.AccessControl\Mirepoix.AccessControl.csproj" />

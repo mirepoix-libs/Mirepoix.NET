@@ -1,5 +1,3 @@
-using Mirepoix.AccessControl;
-using Mirepoix.AccessControl.Hosting;
 using Mirepoix.AccessControl.Policy;
 using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
 using Microsoft.AspNetCore.Authentication;
@@ -7,7 +5,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Mirepoix.AccessControl.Hosting.Tests.TestHost;
 

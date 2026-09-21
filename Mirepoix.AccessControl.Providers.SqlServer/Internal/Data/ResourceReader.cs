@@ -1,9 +1,12 @@
-using Microsoft.Data.SqlClient;
 using Mirepoix.AccessControl.Providers.Codec;
 using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers.SqlServer.Internal.Data;
 
+/// <summary>
+/// Hydrates resources from <c>dbo.ac_resource_attribute</c>.
+/// Identity is (type, id); "not found" means zero attribute rows (there is no resource header table).
+/// </summary>
 internal sealed class ResourceReader
 {
     private readonly SqlConnectionFactory _connections;
@@ -13,6 +16,10 @@ internal sealed class ResourceReader
         _connections = connections;
     }
 
+    /// <summary>
+    /// Loads all attributes for the resource identity.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Thrown when no rows match.</exception>
     public async Task<Resource> ReadAsync(string resourceType, string resourceId, CancellationToken cancellationToken)
     {
         var attributes = new Dictionary<string, object?>(StringComparer.Ordinal);

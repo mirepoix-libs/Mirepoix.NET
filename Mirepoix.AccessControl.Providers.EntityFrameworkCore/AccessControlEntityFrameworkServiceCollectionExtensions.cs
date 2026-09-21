@@ -4,15 +4,23 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
-/// DI helpers for EF Core read/hydrate adapters.
-/// Pair with Hosting <c>AddAccessControl</c> for HTTP PEPs.
-/// Prefer slice helpers when mixing sources; the unified helpers call all three slices.
+/// Registers EF Core read/hydrate adapters into DI.
+/// Two modes by overload: package-driven (registers <see cref="AccessControlDbContext"/> +
+/// <see cref="AccessControlSchemaApplier"/>, requires <see cref="EntityFrameworkProviderOptions.ConfigureDb"/>)
+/// vs app-owned (generic <c>TContext</c>; app registers the context and owns migrations).
+/// Prefer slice helpers when mixing sources; unified helpers call all three slices.
+/// Seam guards prevent silent replacement. Registers <see cref="IBundleHydrator"/> once as
+/// <see cref="CompositeBundleHydrator"/> with <see cref="PassThroughContextResolver"/> when absent.
+/// Do not mix package-driven and app-owned registration against the same options/context.
 /// </summary>
 public static class AccessControlEntityFrameworkServiceCollectionExtensions
 {
     /// <summary>
-    /// Package-driven: policies + subjects + resources (+ shared DbContext / schema applier).
+    /// Registers package-driven policies, subjects, and resources (shared DbContext / schema applier).
     /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Must set <see cref="EntityFrameworkProviderOptions.ConfigureDb"/> on first registration.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlProviders(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions> configure)
@@ -27,8 +35,13 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
     }
 
     /// <summary>
-    /// App-owned: policies + subjects + resources against <typeparamref name="TContext"/>.
+    /// Registers app-owned policies, subjects, and resources against <typeparamref name="TContext"/>.
+    /// Does not register <see cref="AccessControlDbContext"/> or <see cref="AccessControlSchemaApplier"/>.
     /// </summary>
+    /// <typeparam name="TContext">App <see cref="DbContext"/> that includes the access-control model.</typeparam>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Optional cache/mapping options (<see cref="EntityFrameworkProviderOptions.ConfigureDb"/> ignored).</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlProviders<TContext>(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)
@@ -42,6 +55,12 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers an <see cref="EntityFrameworkPolicySource"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Required with <see cref="EntityFrameworkProviderOptions.ConfigureDb"/> on first call.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlPolicyProviders(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)
@@ -58,6 +77,12 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers a <see cref="EntityFrameworkSubjectResolver"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Optional; <see cref="EntityFrameworkProviderOptions.ConfigureDb"/> required if options not yet registered.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlSubjectProviders(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)
@@ -74,6 +99,12 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers a package-driven <see cref="EntityFrameworkResourceResolver"/>.
+    /// </summary>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Optional; <see cref="EntityFrameworkProviderOptions.ConfigureDb"/> required if options not yet registered.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlResourceProviders(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)
@@ -90,6 +121,13 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers an app-owned <see cref="EntityFrameworkPolicySource"/> against <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">App context type.</typeparam>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Optional options (sets <see cref="EntityFrameworkProviderOptions.ContextType"/>).</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlPolicyProviders<TContext>(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)
@@ -107,6 +145,13 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers an app-owned <see cref="EntityFrameworkSubjectResolver"/> against <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">App context type.</typeparam>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Optional options.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlSubjectProviders<TContext>(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)
@@ -124,6 +169,13 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers an app-owned <see cref="EntityFrameworkResourceResolver"/> against <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">App context type.</typeparam>
+    /// <param name="services">DI collection.</param>
+    /// <param name="configure">Optional options.</param>
+    /// <returns><paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddAccessControlResourceProviders<TContext>(
         this IServiceCollection services,
         Action<EntityFrameworkProviderOptions>? configure = null)

@@ -3,17 +3,32 @@ using Microsoft.AspNetCore.Http;
 
 namespace Mirepoix.AccessControl.Hosting;
 
+/// <summary>
+/// Handles the shared <see cref="AccessRequirement"/> policy by running <see cref="AccessCheckPipeline"/>.
+/// Succeeds only on Allow; Challenge and Forbid both call <c>context.Fail()</c> (ASP.NET maps authn vs 403).
+/// </summary>
 public sealed class AccessAuthorizationHandler : AuthorizationHandler<AccessRequirement>
 {
     private readonly IClaimsPrincipalMapper _mapper;
     private readonly IAccessChecker _checker;
 
+    /// <summary>
+    /// Creates a handler bound to <paramref name="mapper"/> and <paramref name="checker"/>.
+    /// </summary>
+    /// <param name="mapper">Principal-to-seed mapper.</param>
+    /// <param name="checker">Access decision facade.</param>
     public AccessAuthorizationHandler(IClaimsPrincipalMapper mapper, IAccessChecker checker)
     {
         _mapper = mapper;
         _checker = checker;
     }
 
+    /// <summary>
+    /// Runs the shared PEP against the HTTP context attached to <paramref name="context"/>.
+    /// Fails immediately when no <see cref="HttpContext"/> can be resolved from the authorization resource.
+    /// </summary>
+    /// <param name="context">ASP.NET authorization context.</param>
+    /// <param name="requirement">Marker requirement for the Mirepoix policy.</param>
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
         AccessRequirement requirement)
@@ -42,6 +57,10 @@ public sealed class AccessAuthorizationHandler : AuthorizationHandler<AccessRequ
         }
     }
 
+    /// <summary>
+    /// Resolves <see cref="HttpContext"/> from <paramref name="context"/>.Resource
+    /// (direct <see cref="HttpContext"/> or MVC <c>AuthorizationFilterContext</c>).
+    /// </summary>
     private static HttpContext? TryGetHttpContext(AuthorizationHandlerContext context)
     {
         if (context.Resource is HttpContext http)

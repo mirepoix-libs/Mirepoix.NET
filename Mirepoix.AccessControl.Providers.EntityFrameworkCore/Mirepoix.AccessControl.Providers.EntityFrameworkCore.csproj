@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Mirepoix.AccessControl.Providers</RootNamespace>
     <AssemblyName>Mirepoix.AccessControl.Providers.EntityFrameworkCore</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mirepoix.AccessControl.Providers\Mirepoix.AccessControl.Providers.csproj" />

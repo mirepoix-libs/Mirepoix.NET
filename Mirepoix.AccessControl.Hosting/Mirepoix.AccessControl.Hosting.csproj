@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Mirepoix.AccessControl.Hosting</RootNamespace>
     <AssemblyName>Mirepoix.AccessControl.Hosting</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

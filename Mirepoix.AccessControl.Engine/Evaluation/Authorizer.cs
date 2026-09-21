@@ -2,15 +2,33 @@ using Mirepoix.AccessControl.Policy;
 
 namespace Mirepoix.AccessControl.Evaluation;
 
+/// <summary>
+/// Evaluates policies by ANDing atoms into ordered hits, then combining them.
+/// Sync and side-effect free. Emits only <see cref="DecisionStatus.Success"/> or
+/// <see cref="DecisionStatus.Defaulted"/> (never hydration/policy-source failure statuses).
+/// Always passes <see cref="AuthorizationResult.Deny"/> as the strategy default.
+/// </summary>
 public sealed class Authorizer
 {
     private readonly ICombinationStrategy _strategy;
 
+    /// <summary>
+    /// Creates a kernel bound to <paramref name="strategy"/>.
+    /// </summary>
+    /// <param name="strategy">Hit combination strategy.</param>
     public Authorizer(ICombinationStrategy strategy)
     {
         _strategy = strategy;
     }
 
+    /// <summary>
+    /// Evaluates <paramref name="policies"/> against <paramref name="bundle"/>.
+    /// No hits: Deny + <see cref="DecisionStatus.Defaulted"/>. Otherwise: combined effect +
+    /// <see cref="DecisionStatus.Success"/>. Version is always <see cref="PolicySet.Version"/>.
+    /// </summary>
+    /// <param name="bundle">Hydrated evaluation input.</param>
+    /// <param name="policies">Policy set to evaluate in list order.</param>
+    /// <returns>Decision with full hit list (including when Defaulted with empty hits).</returns>
     public AccessDecision Authorize(AuthorizationBundle bundle, PolicySet policies)
     {
         var hits = new List<PolicyHit>();

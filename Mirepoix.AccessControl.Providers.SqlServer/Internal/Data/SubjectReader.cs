@@ -1,9 +1,13 @@
-using Microsoft.Data.SqlClient;
 using Mirepoix.AccessControl.Providers.Codec;
 using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers.SqlServer.Internal.Data;
 
+/// <summary>
+/// Hydrates subjects from <c>dbo.ac_subject</c>, roles, and attributes.
+/// Requires a row in <c>ac_subject</c>; missing row throws even if role/attribute rows somehow exist.
+/// Attribute values decode via <see cref="AttributeValueCodec"/>.
+/// </summary>
 internal sealed class SubjectReader
 {
     private readonly SqlConnectionFactory _connections;
@@ -13,6 +17,10 @@ internal sealed class SubjectReader
         _connections = connections;
     }
 
+    /// <summary>
+    /// Loads roles and attributes for <paramref name="subjectId"/>.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Thrown when the subject id is not in <c>ac_subject</c>.</exception>
     public async Task<Subject> ReadAsync(string subjectId, CancellationToken cancellationToken)
     {
         await using var connection = _connections.Create();

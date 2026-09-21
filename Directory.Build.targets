@@ -1,0 +1,6 @@
+<Project>
+  <!-- After the csproj sets GenerateDocumentationFile, elevate XML doc warnings to errors. -->
+  <PropertyGroup Condition="'$(GenerateDocumentationFile)' == 'true'">
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1573;CS1574;CS1584;CS1587</WarningsAsErrors>
+  </PropertyGroup>
+</Project>

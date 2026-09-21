@@ -6,16 +6,35 @@ using Mirepoix.AccessControl.Internal;
 
 namespace Mirepoix.AccessControl.Policy;
 
+/// <summary>
+/// Serializes and deserializes <see cref="PolicySet"/> as JSON and binary.
+/// Binary is a little-endian length-prefixed UTF-8 JSON envelope (same schema as JSON), not a separate type system.
+/// Unknown atom types fail serialize/deserialize. Atom JSON discriminators match <see cref="IAtom.Name"/>.
+/// </summary>
 public static class PolicySerializers
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
+    /// <summary>
+    /// Serializes <paramref name="set"/> to camelCase JSON with string enums and polymorphic atoms.
+    /// </summary>
+    /// <param name="set">Policy set to serialize.</param>
+    /// <returns>JSON string.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="set"/> is null.</exception>
+    /// <exception cref="NotSupportedException">Thrown when an atom type is not recognized.</exception>
     public static string ToJson(PolicySet set)
     {
         ArgumentNullException.ThrowIfNull(set);
         return JsonSerializer.Serialize(ToDto(set), JsonOptions);
     }
 
+    /// <summary>
+    /// Deserializes a JSON policy set. Unknown atom discriminators fail.
+    /// </summary>
+    /// <param name="json">JSON produced by <see cref="ToJson"/> or compatible.</param>
+    /// <returns>Reconstructed <see cref="PolicySet"/> (including <see cref="Policy"/> empty-atom validation).</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    /// <exception cref="JsonException">Thrown when JSON is invalid, null, or contains an unknown atom payload.</exception>
     public static PolicySet FromJson(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
@@ -24,7 +43,11 @@ public static class PolicySerializers
         return FromDto(dto);
     }
 
-    // v1 binary is a length-prefixed UTF8 JSON envelope, not a distinct schema.
+    /// <summary>
+    /// Serializes to binary: 4-byte little-endian UTF-8 length, then UTF-8 JSON bytes from <see cref="ToJson"/>.
+    /// </summary>
+    /// <param name="set">Policy set to serialize.</param>
+    /// <returns>Length-prefixed envelope bytes.</returns>
     public static byte[] ToBinary(PolicySet set)
     {
         var utf8 = Encoding.UTF8.GetBytes(ToJson(set));
@@ -38,6 +61,13 @@ public static class PolicySerializers
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Deserializes a length-prefixed UTF-8 JSON envelope produced by <see cref="ToBinary"/>.
+    /// </summary>
+    /// <param name="data">Envelope bytes.</param>
+    /// <returns>Reconstructed <see cref="PolicySet"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="data"/> is null.</exception>
+    /// <exception cref="FormatException">Thrown when the header/payload length is truncated or inconsistent.</exception>
     public static PolicySet FromBinary(byte[] data)
     {
         ArgumentNullException.ThrowIfNull(data);

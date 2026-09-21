@@ -1,10 +1,13 @@
-using Microsoft.Data.SqlClient;
 using Mirepoix.AccessControl.Policy;
 using Mirepoix.AccessControl.Providers.Codec;
 using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers.SqlServer.Internal.Data;
 
+/// <summary>
+/// Reads the singleton <c>dbo.ac_policy_set</c> row (<see cref="AccessControlSchema.PolicySetSingletonId"/>)
+/// and deserializes <c>payload_json</c> via <see cref="PolicySetStorageCodec"/>. Schema is hard-coded to <c>dbo</c>.
+/// </summary>
 internal sealed class PolicySetReader
 {
     private readonly SqlConnectionFactory _connections;
@@ -14,6 +17,9 @@ internal sealed class PolicySetReader
         _connections = connections;
     }
 
+    /// <summary>
+    /// Loads the current policy set. Throws when the singleton row is missing.
+    /// </summary>
     public async Task<PolicySet> ReadCurrentAsync(CancellationToken cancellationToken)
     {
         await using var connection = _connections.Create();

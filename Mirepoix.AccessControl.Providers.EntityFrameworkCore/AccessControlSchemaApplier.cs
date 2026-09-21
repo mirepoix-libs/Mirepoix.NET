@@ -4,15 +4,32 @@ using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers;
 
+/// <summary>
+/// Applies the embedded dialect init script for package-driven mode against <see cref="AccessControlDbContext"/>.
+/// Resolves dialect from the EF database provider name via <see cref="AccessControlSchemaDialectMap"/>.
+/// Only SqlServer and PostgreSQL provider names are supported; other providers need app-owned migrations.
+/// Registered only by package-driven DI helpers.
+/// </summary>
 public sealed class AccessControlSchemaApplier
 {
     private readonly IServiceScopeFactory _scopeFactory;
 
+    /// <summary>
+    /// Creates an applier that resolves <see cref="AccessControlDbContext"/> from a scope.
+    /// </summary>
+    /// <param name="scopeFactory">DI scope factory.</param>
     public AccessControlSchemaApplier(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;
     }
 
+    /// <summary>
+    /// Opens the context connection if needed and executes each script batch for the resolved dialect.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation for open/execute.</param>
+    /// <exception cref="NotSupportedException">
+    /// Thrown when the EF provider name is not SqlServer or PostgreSQL.
+    /// </exception>
     public async Task ApplyAsync(CancellationToken cancellationToken = default)
     {
         using var scope = _scopeFactory.CreateScope();

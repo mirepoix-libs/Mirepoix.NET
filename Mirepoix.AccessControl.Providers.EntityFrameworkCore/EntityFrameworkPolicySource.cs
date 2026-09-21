@@ -7,6 +7,11 @@ using Mirepoix.AccessControl.Providers.Schema;
 
 namespace Mirepoix.AccessControl.Providers;
 
+/// <summary>
+/// Loads the singleton <see cref="PolicySetEntity"/> via EF as an <see cref="IPolicySource"/>.
+/// Resolves <see cref="EntityFrameworkProviderOptions.ContextType"/> from a scope and deserializes payload JSON.
+/// Caches in-process per <see cref="EntityFrameworkProviderOptions.PolicyCacheTtl"/>.
+/// </summary>
 public sealed class EntityFrameworkPolicySource : IPolicySource
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -16,6 +21,11 @@ public sealed class EntityFrameworkPolicySource : IPolicySource
     private PolicySet? _cached;
     private DateTimeOffset _cachedAt;
 
+    /// <summary>
+    /// Creates a source. <see cref="EntityFrameworkProviderOptions.ContextType"/> must be a <see cref="DbContext"/> type.
+    /// </summary>
+    /// <param name="scopeFactory">Used to create a scope per uncached load (safe with scoped DbContext).</param>
+    /// <param name="options">Cache TTL and context type.</param>
     public EntityFrameworkPolicySource(
         IServiceScopeFactory scopeFactory,
         EntityFrameworkProviderOptions options)
@@ -33,6 +43,12 @@ public sealed class EntityFrameworkPolicySource : IPolicySource
         _cacheTtl = options.PolicyCacheTtl;
     }
 
+    /// <summary>
+    /// Returns the cached set when fresh; otherwise loads via EF and updates the cache under a lock.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation for the database query.</param>
+    /// <returns>Current <see cref="PolicySet"/>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the singleton policy set row is missing.</exception>
     public async Task<PolicySet> GetPolicySetAsync(CancellationToken cancellationToken)
     {
         if (TryGetCached(out var cached))
