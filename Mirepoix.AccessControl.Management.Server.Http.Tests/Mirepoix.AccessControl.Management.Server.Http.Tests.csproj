@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Mirepoix.AccessControl.Management.Hosting\Mirepoix.AccessControl.Management.Hosting.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Management.Server.Http\Mirepoix.AccessControl.Management.Server.Http.csproj" />
   </ItemGroup>
 
 </Project>

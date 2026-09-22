@@ -6,22 +6,22 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Mirepoix.AccessControl.Management.Hosting;
+namespace Mirepoix.AccessControl.Management.Server.Http;
 
 /// <summary>
 /// Registers and maps opt-in AccessControl management HTTP slices.
 /// </summary>
-public static class AccessControlManagementHostingExtensions
+public static class AccessControlManagementServerHttpExtensions
 {
-    /// <summary>Registers management HTTP hosting options.</summary>
-    public static IServiceCollection AddAccessControlManagementHosting(
+    /// <summary>Registers management HTTP server options.</summary>
+    public static IServiceCollection AddAccessControlManagementServerHttp(
         this IServiceCollection services,
-        Action<AccessControlManagementHostingOptions> configure)
+        Action<AccessControlManagementServerHttpOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new AccessControlManagementHostingOptions();
+        var options = new AccessControlManagementServerHttpOptions();
         configure(options);
         services.AddSingleton(options);
         return services;
@@ -32,7 +32,7 @@ public static class AccessControlManagementHostingExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        var options = endpoints.ServiceProvider.GetRequiredService<AccessControlManagementHostingOptions>();
+        var options = endpoints.ServiceProvider.GetRequiredService<AccessControlManagementServerHttpOptions>();
         ValidateSeams(endpoints.ServiceProvider, options);
 
         var group = endpoints.MapGroup(options.RoutePrefix);
@@ -344,7 +344,7 @@ public static class AccessControlManagementHostingExtensions
             _ => value.Clone(),
         };
 
-    private static void ValidateSeams(IServiceProvider services, AccessControlManagementHostingOptions options)
+    private static void ValidateSeams(IServiceProvider services, AccessControlManagementServerHttpOptions options)
     {
         var serviceProbe = services.GetRequiredService<IServiceProviderIsService>();
 

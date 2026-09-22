@@ -4,8 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>Mirepoix.AccessControl.Management.Hosting</RootNamespace>
-    <AssemblyName>Mirepoix.AccessControl.Management.Hosting</AssemblyName>
+    <RootNamespace>Mirepoix.AccessControl.Management.Server.Http</RootNamespace>
+    <AssemblyName>Mirepoix.AccessControl.Management.Server.Http</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Mirepoix.AccessControl.Management.Hosting.Tests" />
+    <InternalsVisibleTo Include="Mirepoix.AccessControl.Management.Server.Http.Tests" />
   </ItemGroup>
 
 </Project>
