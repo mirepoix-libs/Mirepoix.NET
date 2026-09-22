@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 
-namespace Mirepoix.AccessControl.Management.Hosting.Tests;
+namespace Mirepoix.AccessControl.Management.Server.Http.Tests;
 
 public sealed class ManagementEndpointMappingTests
 {
@@ -17,7 +17,7 @@ public sealed class ManagementEndpointMappingTests
             EnvironmentName = "Development",
         });
         builder.Services.AddScoped<ISubjectStore, FakeSubjectStore>();
-        builder.Services.AddAccessControlManagementHosting(options => options.AddSubjects());
+        builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         using var app = builder.Build();
 
         app.MapAccessControlManagement();
@@ -27,7 +27,7 @@ public sealed class ManagementEndpointMappingTests
     public void MapAccessControlManagement_ThrowsWhenEnabledSubjectsSeamIsMissing()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Services.AddAccessControlManagementHosting(options => options.AddSubjects());
+        builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         using var app = builder.Build();
 
         var exception = Assert.Throws<InvalidOperationException>(
@@ -42,7 +42,7 @@ public sealed class ManagementEndpointMappingTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<ISubjectStore, FakeSubjectStore>();
-        builder.Services.AddAccessControlManagementHosting(options => options.AddSubjects());
+        builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         await using var app = builder.Build();
         app.MapAccessControlManagement();
         await app.StartAsync();
@@ -74,7 +74,7 @@ public sealed class ManagementEndpointMappingTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<SodState>();
         builder.Services.AddScoped<ISodConstraintStore, FakeSodConstraintStore>();
-        builder.Services.AddAccessControlManagementHosting(options => options.AddSod());
+        builder.Services.AddAccessControlManagementServerHttp(options => options.AddSod());
         await using var app = builder.Build();
         app.MapAccessControlManagement();
         await app.StartAsync();
@@ -101,7 +101,7 @@ public sealed class ManagementEndpointMappingTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<RoleState>();
         builder.Services.AddScoped<ISubjectStore, RoleOnlySubjectStore>();
-        builder.Services.AddAccessControlManagementHosting(options => options.AddSubjects());
+        builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         await using var app = builder.Build();
         app.MapAccessControlManagement();
         await app.StartAsync();
@@ -127,7 +127,7 @@ public sealed class ManagementEndpointMappingTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<ResourceState>();
         builder.Services.AddScoped<IResourceStore, FakeResourceStore>();
-        builder.Services.AddAccessControlManagementHosting(options => options.AddResources());
+        builder.Services.AddAccessControlManagementServerHttp(options => options.AddResources());
         await using var app = builder.Build();
         app.MapAccessControlManagement();
         await app.StartAsync();

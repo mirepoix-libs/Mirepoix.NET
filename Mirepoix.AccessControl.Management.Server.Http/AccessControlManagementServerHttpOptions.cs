@@ -1,9 +1,9 @@
-namespace Mirepoix.AccessControl.Management.Hosting;
+namespace Mirepoix.AccessControl.Management.Server.Http;
 
 /// <summary>
 /// Selects management HTTP slices and their shared route settings.
 /// </summary>
-public sealed class AccessControlManagementHostingOptions
+public sealed class AccessControlManagementServerHttpOptions
 {
     /// <summary>Gets or sets the shared route prefix.</summary>
     public string RoutePrefix { get; set; } = "/access-control";
@@ -18,35 +18,35 @@ public sealed class AccessControlManagementHostingOptions
     internal bool PolicySetEnabled { get; private set; }
 
     /// <summary>Enables subject management endpoints.</summary>
-    public AccessControlManagementHostingOptions AddSubjects()
+    public AccessControlManagementServerHttpOptions AddSubjects()
     {
         SubjectsEnabled = true;
         return this;
     }
 
     /// <summary>Enables resource management endpoints.</summary>
-    public AccessControlManagementHostingOptions AddResources()
+    public AccessControlManagementServerHttpOptions AddResources()
     {
         ResourcesEnabled = true;
         return this;
     }
 
     /// <summary>Enables role catalog endpoints.</summary>
-    public AccessControlManagementHostingOptions AddRoles()
+    public AccessControlManagementServerHttpOptions AddRoles()
     {
         RolesEnabled = true;
         return this;
     }
 
     /// <summary>Enables separation-of-duty constraint endpoints.</summary>
-    public AccessControlManagementHostingOptions AddSod()
+    public AccessControlManagementServerHttpOptions AddSod()
     {
         SodEnabled = true;
         return this;
     }
 
     /// <summary>Enables policy-set replacement.</summary>
-    public AccessControlManagementHostingOptions AddPolicySet()
+    public AccessControlManagementServerHttpOptions AddPolicySet()
     {
         PolicySetEnabled = true;
         return this;
