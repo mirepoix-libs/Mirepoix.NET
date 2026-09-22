@@ -7,7 +7,7 @@ namespace Mirepoix.AccessControl.Providers.Schema;
 public static class AccessControlSchema
 {
     /// <summary>Names the logical schema version this contract describes.</summary>
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     /// <summary>
     /// Names the singleton row id for <see cref="PolicySetTable"/>. Providers store one active policy set at this id.
@@ -29,6 +29,15 @@ public static class AccessControlSchema
     /// <summary>Names the resource attribute table keyed by type + id (<c>value_json</c>).</summary>
     public const string ResourceAttributeTable = "ac_resource_attribute";
 
+    /// <summary>Names the role catalog table.</summary>
+    public const string RoleTable = "ac_role";
+
+    /// <summary>Names the separation-of-duties constraint header table.</summary>
+    public const string SodConstraintTable = "ac_sod_constraint";
+
+    /// <summary>Names the role-membership table for separation-of-duties constraints.</summary>
+    public const string SodConstraintRoleTable = "ac_sod_constraint_role";
+
     /// <summary>Names the primary / row id column.</summary>
     public const string ColId = "id";
 
@@ -41,11 +50,23 @@ public static class AccessControlSchema
     /// <summary>Names the UTC timestamp column on the policy set row.</summary>
     public const string ColUpdatedUtc = "updated_utc";
 
-    /// <summary>Names the subject id column (and FK on role/attribute tables).</summary>
+    /// <summary>
+    /// Names the subject id column. It is an FK on <see cref="SubjectAttributeTable"/> but not on
+    /// <see cref="SubjectRoleTable"/>.
+    /// </summary>
     public const string ColSubjectId = "subject_id";
 
     /// <summary>Names the role name column on <see cref="SubjectRoleTable"/>.</summary>
     public const string ColRole = "role";
+
+    /// <summary>Names the role identifier column on role catalog and constraint-role rows.</summary>
+    public const string ColRoleId = "role_id";
+
+    /// <summary>Names the separation-of-duties constraint identifier column.</summary>
+    public const string ColConstraintId = "constraint_id";
+
+    /// <summary>Names the optional role description column.</summary>
+    public const string ColDescription = "description";
 
     /// <summary>Names the attribute name column.</summary>
     public const string ColName = "name";
@@ -59,4 +80,4 @@ public static class AccessControlSchema
     /// <summary>Names the resource id column on <see cref="ResourceAttributeTable"/>.</summary>
     public const string ColResourceId = "resource_id";
 }
-
+

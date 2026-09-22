@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Mirepoix.AccessControl.Engine\Mirepoix.AccessControl.Engine.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.SqlServer.Tests" />
@@ -19,8 +19,26 @@
     <EmbeddedResource Include="Schema\Scripts\SqlServer\001_init.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.001_init.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\SqlServer\001b_subject_roles.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.001b_subject_roles.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\SqlServer\002_management.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.002_management.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\SqlServer\002b_subjects.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.002b_subjects.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="Schema\Scripts\PostgreSql\001_init.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001_init.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\PostgreSql\001b_subject_roles.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001b_subject_roles.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\PostgreSql\002_management.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.002_management.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\PostgreSql\002b_subjects.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.002b_subjects.sql</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

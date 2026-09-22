@@ -50,4 +50,22 @@ public class MappedSubjectReaderTests
         options.MapEntity<UserRow>(m => m.Id(x => x.Id));
         options.Validate(requireStorageTable: true);
     }
+
+    [Fact]
+    public void MergeLibraryRoles_unions_mapped_and_library_roles()
+    {
+        var mapped = new Subject(
+            "u1",
+            new HashSet<string>(["employee"], StringComparer.Ordinal),
+            new Dictionary<string, object?> { ["Email"] = "a@b.c" });
+
+        var merged = SqlServerSubjectResolver.MergeLibraryRoles(
+            mapped,
+            ["EDITOR", "employee"]);
+
+        Assert.Equal(2, merged.Roles.Count);
+        Assert.Contains("employee", merged.Roles);
+        Assert.Contains("EDITOR", merged.Roles);
+        Assert.Equal("a@b.c", merged.Attributes["Email"]);
+    }
 }

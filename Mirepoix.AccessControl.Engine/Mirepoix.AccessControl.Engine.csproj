@@ -8,6 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
     <ProjectReference Include="..\Mirepoix.AccessControl\Mirepoix.AccessControl.csproj" />
   </ItemGroup>
   <ItemGroup>

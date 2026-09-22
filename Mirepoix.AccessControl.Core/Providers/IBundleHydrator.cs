@@ -2,7 +2,7 @@ namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
 /// Turns an <see cref="AuthorizationRequest"/> into a hydrated <see cref="AuthorizationBundle"/>
-/// for the kernel. This is the only hydration surface <see cref="LocalAccessChecker"/> depends on.
+/// for the kernel. This is the only hydration surface the local access checker depends on.
 /// Implementations may compose per-concern resolvers or call out externally; failures should throw
 /// so the checker can map them to <see cref="DecisionStatus.HydrationFailed"/>.
 /// </summary>

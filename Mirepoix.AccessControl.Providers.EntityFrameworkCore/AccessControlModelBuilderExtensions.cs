@@ -12,12 +12,17 @@ namespace Mirepoix.AccessControl.Providers;
 public static class AccessControlModelBuilderExtensions
 {
     /// <summary>
-    /// Configures policy set, subject, role, subject-attribute, and resource-attribute entities
-    /// (keys, column names, cascade deletes on subject children).
+    /// Configures the always-owned policy, resource, role-catalog, and separation-of-duties entities,
+    /// then adds only the subject entities owned by <paramref name="layout"/>.
+    /// Subject role rows remain standalone and never have a foreign key to subject headers.
     /// </summary>
     /// <param name="modelBuilder">EF model builder.</param>
+    /// <param name="layout">Subject and role storage owned by the library.</param>
     /// <returns><paramref name="modelBuilder"/> for chaining.</returns>
-    public static ModelBuilder ApplyAccessControl(this ModelBuilder modelBuilder)
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="layout"/> is undefined.</exception>
+    public static ModelBuilder ApplyAccessControl(
+        this ModelBuilder modelBuilder,
+        SubjectStorageLayout layout = SubjectStorageLayout.Native)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
@@ -31,23 +36,73 @@ public static class AccessControlModelBuilderExtensions
             e.Property(x => x.UpdatedUtc).HasColumnName(AccessControlSchema.ColUpdatedUtc).IsRequired();
         });
 
+        modelBuilder.Entity<ResourceAttributeEntity>(e =>
+        {
+            e.ToTable(AccessControlSchema.ResourceAttributeTable);
+            e.HasKey(x => new { x.ResourceType, x.ResourceId, x.Name });
+            e.Property(x => x.ResourceType).HasColumnName(AccessControlSchema.ColResourceType).HasMaxLength(256);
+            e.Property(x => x.ResourceId).HasColumnName(AccessControlSchema.ColResourceId).HasMaxLength(256);
+            e.Property(x => x.Name).HasColumnName(AccessControlSchema.ColName).HasMaxLength(256);
+            e.Property(x => x.ValueJson).HasColumnName(AccessControlSchema.ColValueJson);
+        });
+
+        modelBuilder.Entity<RoleEntity>(e =>
+        {
+            e.ToTable(AccessControlSchema.RoleTable);
+            e.HasKey(x => x.RoleId);
+            e.Property(x => x.RoleId).HasColumnName(AccessControlSchema.ColRoleId).HasMaxLength(256);
+            e.Property(x => x.Description).HasColumnName(AccessControlSchema.ColDescription);
+        });
+
+        modelBuilder.Entity<SodConstraintEntity>(e =>
+        {
+            e.ToTable(AccessControlSchema.SodConstraintTable);
+            e.HasKey(x => x.ConstraintId);
+            e.Property(x => x.ConstraintId).HasColumnName(AccessControlSchema.ColConstraintId).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<SodConstraintRoleEntity>(e =>
+        {
+            e.ToTable(AccessControlSchema.SodConstraintRoleTable);
+            e.HasKey(x => new { x.ConstraintId, x.RoleId });
+            e.Property(x => x.ConstraintId).HasColumnName(AccessControlSchema.ColConstraintId).HasMaxLength(256);
+            e.Property(x => x.RoleId).HasColumnName(AccessControlSchema.ColRoleId).HasMaxLength(256);
+            e.HasOne(x => x.Constraint)
+                .WithMany(x => x.Roles)
+                .HasForeignKey(x => x.ConstraintId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        switch (layout)
+        {
+            case SubjectStorageLayout.Native:
+                ConfigureNativeSubjects(modelBuilder);
+                ConfigureSubjectRoles(modelBuilder);
+                break;
+            case SubjectStorageLayout.MappedLibraryRoles:
+                modelBuilder.Ignore<SubjectEntity>();
+                modelBuilder.Ignore<SubjectAttributeEntity>();
+                ConfigureSubjectRoles(modelBuilder);
+                break;
+            case SubjectStorageLayout.MappedAppOwnedRoles:
+                modelBuilder.Ignore<SubjectEntity>();
+                modelBuilder.Ignore<SubjectAttributeEntity>();
+                modelBuilder.Ignore<SubjectRoleEntity>();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(layout), layout, null);
+        }
+
+        return modelBuilder;
+    }
+
+    private static void ConfigureNativeSubjects(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<SubjectEntity>(e =>
         {
             e.ToTable(AccessControlSchema.SubjectTable);
             e.HasKey(x => x.SubjectId);
             e.Property(x => x.SubjectId).HasColumnName(AccessControlSchema.ColSubjectId).HasMaxLength(256);
-        });
-
-        modelBuilder.Entity<SubjectRoleEntity>(e =>
-        {
-            e.ToTable(AccessControlSchema.SubjectRoleTable);
-            e.HasKey(x => new { x.SubjectId, x.Role });
-            e.Property(x => x.SubjectId).HasColumnName(AccessControlSchema.ColSubjectId).HasMaxLength(256);
-            e.Property(x => x.Role).HasColumnName(AccessControlSchema.ColRole).HasMaxLength(256);
-            e.HasOne(x => x.Subject)
-                .WithMany(x => x.Roles)
-                .HasForeignKey(x => x.SubjectId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SubjectAttributeEntity>(e =>
@@ -62,17 +117,16 @@ public static class AccessControlModelBuilderExtensions
                 .HasForeignKey(x => x.SubjectId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
-        modelBuilder.Entity<ResourceAttributeEntity>(e =>
+    private static void ConfigureSubjectRoles(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SubjectRoleEntity>(e =>
         {
-            e.ToTable(AccessControlSchema.ResourceAttributeTable);
-            e.HasKey(x => new { x.ResourceType, x.ResourceId, x.Name });
-            e.Property(x => x.ResourceType).HasColumnName(AccessControlSchema.ColResourceType).HasMaxLength(256);
-            e.Property(x => x.ResourceId).HasColumnName(AccessControlSchema.ColResourceId).HasMaxLength(256);
-            e.Property(x => x.Name).HasColumnName(AccessControlSchema.ColName).HasMaxLength(256);
-            e.Property(x => x.ValueJson).HasColumnName(AccessControlSchema.ColValueJson);
+            e.ToTable(AccessControlSchema.SubjectRoleTable);
+            e.HasKey(x => new { x.SubjectId, x.Role });
+            e.Property(x => x.SubjectId).HasColumnName(AccessControlSchema.ColSubjectId).HasMaxLength(256);
+            e.Property(x => x.Role).HasColumnName(AccessControlSchema.ColRole).HasMaxLength(256);
         });
-
-        return modelBuilder;
     }
 }

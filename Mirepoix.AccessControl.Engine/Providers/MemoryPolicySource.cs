@@ -28,7 +28,7 @@ public sealed class MemoryPolicySource : IPolicySource
 
     /// <summary>
     /// Replaces the entire policy set reference atomically (whole-set swap, not a merge).
-    /// Used by <c>InMemoryPolicySetEditor</c> and tests via InternalsVisibleTo.
+    /// Used by tests via InternalsVisibleTo.
     /// </summary>
     /// <param name="set">New policy set to serve on subsequent reads.</param>
     internal void Replace(PolicySet set) => _set = set;

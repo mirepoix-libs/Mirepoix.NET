@@ -23,13 +23,28 @@ public static class AccessControlSchemaScripts
         return reader.ReadToEnd();
     }
 
-    /// <summary>Loads the SqlServer <c>001_init.sql</c> script.</summary>
-    public static string LoadSqlServerInit() =>
-        Load(AccessControlSchemaDialectMap.SqlServerInitResource);
+    /// <summary>
+    /// Loads core, subject-role, management, then native-subject scripts for the dialect in schema-application order.
+    /// </summary>
+    /// <param name="dialect">Target database dialect.</param>
+    /// <returns>
+    /// Ordered script text corresponding to
+    /// <see cref="AccessControlSchemaDialectMap.ResourceNames(AccessControlSchemaDialect)"/>.
+    /// </returns>
+    public static IReadOnlyList<string> Load(AccessControlSchemaDialect dialect) =>
+        AccessControlSchemaDialectMap.ResourceNames(dialect).Select(Load).ToArray();
 
-    /// <summary>Loads the PostgreSQL <c>001_init.sql</c> script.</summary>
+    /// <summary>
+    /// Loads the complete SqlServer schema as one compatibility script in application order.
+    /// </summary>
+    public static string LoadSqlServerInit() =>
+        string.Join(Environment.NewLine, Load(AccessControlSchemaDialect.SqlServer));
+
+    /// <summary>
+    /// Loads the complete PostgreSQL schema as one compatibility script in application order.
+    /// </summary>
     public static string LoadPostgreSqlInit() =>
-        Load(AccessControlSchemaDialectMap.PostgreSqlInitResource);
+        string.Join(Environment.NewLine, Load(AccessControlSchemaDialect.PostgreSql));
 
     /// <summary>
     /// Splits <paramref name="script"/> into batches for the given dialect.

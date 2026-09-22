@@ -41,6 +41,34 @@ public class PolicySetStorageCodecTests
 
 public class SchemaScriptTests
 {
+    public static TheoryData<SubjectStorageLayout, string[]> LayoutScripts => new()
+    {
+        {
+            SubjectStorageLayout.Native,
+            [
+                AccessControlSchemaDialectMap.SqlServerCoreResource,
+                AccessControlSchemaDialectMap.SqlServerSubjectRolesResource,
+                AccessControlSchemaDialectMap.SqlServerManagementResource,
+                AccessControlSchemaDialectMap.SqlServerSubjectsResource,
+            ]
+        },
+        {
+            SubjectStorageLayout.MappedLibraryRoles,
+            [
+                AccessControlSchemaDialectMap.SqlServerCoreResource,
+                AccessControlSchemaDialectMap.SqlServerSubjectRolesResource,
+                AccessControlSchemaDialectMap.SqlServerManagementResource,
+            ]
+        },
+        {
+            SubjectStorageLayout.MappedAppOwnedRoles,
+            [
+                AccessControlSchemaDialectMap.SqlServerCoreResource,
+                AccessControlSchemaDialectMap.SqlServerManagementResource,
+            ]
+        },
+    };
+
     [Fact]
     public void Embedded_init_script_loads_and_splits()
     {
@@ -50,5 +78,14 @@ public class SchemaScriptTests
 
         var batches = AccessControlSchemaScripts.SplitBatches(script, AccessControlSchemaDialect.SqlServer).ToList();
         Assert.True(batches.Count >= 5);
+    }
+
+    [Theory]
+    [MemberData(nameof(LayoutScripts))]
+    public void Migrator_selects_ordered_scripts_for_layout(
+        SubjectStorageLayout layout,
+        string[] expected)
+    {
+        Assert.Equal(expected, SqlServerSchemaMigrator.ResourceNames(layout));
     }
 }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Mirepoix.AccessControl.Management</RootNamespace>
+    <AssemblyName>Mirepoix.AccessControl.Management.EntityFrameworkCore</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Providers\Mirepoix.AccessControl.Providers.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Providers.EntityFrameworkCore\Mirepoix.AccessControl.Providers.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mirepoix.AccessControl.Management.EntityFrameworkCore.Tests" />
+  </ItemGroup>
+</Project>

@@ -12,6 +12,12 @@ public class SqlServerIntegrationTests
 
     public static bool SqlAvailable => ConnectionString is not null;
 
+    private sealed class MappedUser
+    {
+        public string Id { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+
     [Fact]
     public async Task Migrator_policy_source_and_resolvers_round_trip()
     {
@@ -100,6 +106,54 @@ public class SqlServerIntegrationTests
             new Resource("doc", "42", new Dictionary<string, object?>()),
             CancellationToken.None);
         Assert.Equal("user-1", resource.Attributes["ownerId"]);
+    }
+
+    [Fact]
+    public async Task Mapped_subject_without_role_members_unions_library_roles()
+    {
+        if (!SqlAvailable)
+            return;
+
+        var options = new SqlServerProviderOptions { ConnectionString = ConnectionString! };
+        options.MapSubject<MappedUser>(m =>
+            m.Id(x => x.Id).Type("employee").TypeAsRole().ToTable("task4_mapped_users"));
+
+        var migrator = new SqlServerSchemaMigrator(options);
+        await migrator.ApplyAsync();
+
+        await using (var connection = new SqlConnection(ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var setup = connection.CreateCommand();
+            setup.CommandText =
+                $"""
+                 IF OBJECT_ID(N'dbo.task4_mapped_users', N'U') IS NULL
+                 BEGIN
+                     CREATE TABLE dbo.task4_mapped_users
+                     (
+                         Id NVARCHAR(256) NOT NULL PRIMARY KEY,
+                         Email NVARCHAR(256) NOT NULL
+                     );
+                 END;
+                 DELETE FROM dbo.task4_mapped_users WHERE Id = @id;
+                 DELETE FROM dbo.{AccessControlSchema.SubjectRoleTable} WHERE subject_id = @id;
+                 INSERT INTO dbo.task4_mapped_users (Id, Email) VALUES (@id, @email);
+                 INSERT INTO dbo.{AccessControlSchema.SubjectRoleTable} (subject_id, role) VALUES (@id, @role);
+                 """;
+            setup.Parameters.AddWithValue("@id", "mapped-user-1");
+            setup.Parameters.AddWithValue("@email", "mapped@example.test");
+            setup.Parameters.AddWithValue("@role", "EDITOR");
+            await setup.ExecuteNonQueryAsync();
+        }
+
+        var resolver = new SqlServerSubjectResolver(options);
+        var subject = await resolver.HydrateAsync(
+            new Subject("mapped-user-1", new HashSet<string>(), new Dictionary<string, object?>()),
+            CancellationToken.None);
+
+        Assert.Equal(2, subject.Roles.Count);
+        Assert.Contains("employee", subject.Roles);
+        Assert.Contains("EDITOR", subject.Roles);
     }
 
     private static async Task WipeDataAsync(SqlConnection connection)

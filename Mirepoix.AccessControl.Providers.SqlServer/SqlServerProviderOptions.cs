@@ -20,7 +20,8 @@ public sealed class SqlServerProviderOptions
     /// <summary>
     /// Holds optional maps from app entity types to <see cref="Subject"/>.
     /// Empty maps mean hydrate from built-in <c>ac_subject*</c> tables.
-    /// Mapped mode does not merge with <c>ac_subject*</c>.
+    /// Mapped entities without explicit role members union roles from library-owned <c>ac_subject_role</c>;
+    /// mappings with role members use only app-owned role storage.
     /// </summary>
     public SubjectMappingOptions SubjectMapping { get; } = new();
 

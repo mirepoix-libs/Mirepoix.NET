@@ -9,7 +9,8 @@ namespace Mirepoix.AccessControl.Providers;
 /// Hydrates subjects via EF as an <see cref="ISubjectResolver"/>.
 /// Empty maps: load <see cref="SubjectEntity"/> with roles/attributes from <c>ac_subject*</c>.
 /// With maps: <see cref="SubjectMappingLookup"/> + <see cref="EntityFrameworkSubjectFetch"/> against
-/// <c>DbSet&lt;T&gt;</c> for each map's CLR type. Validates maps at construction (<c>requireStorageTable: false</c>).
+/// <c>DbSet&lt;T&gt;</c> for each map's CLR type, then union library-owned role rows when configured.
+/// Validates maps at construction (<c>requireStorageTable: false</c>).
 /// Creates a DI scope per hydrate call.
 /// </summary>
 public sealed class EntityFrameworkSubjectResolver : ISubjectResolver
@@ -17,6 +18,7 @@ public sealed class EntityFrameworkSubjectResolver : ISubjectResolver
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly Type _contextType;
     private readonly SubjectMappingOptions _subjectMapping;
+    private readonly SubjectStorageLayout _layout;
 
     /// <summary>
     /// Creates a resolver. <see cref="EntityFrameworkProviderOptions.ContextType"/> must be a <see cref="DbContext"/> type.
@@ -40,6 +42,7 @@ public sealed class EntityFrameworkSubjectResolver : ISubjectResolver
         _scopeFactory = scopeFactory;
         _contextType = options.ContextType;
         _subjectMapping = options.SubjectMapping;
+        _layout = SubjectStorageLayoutResolver.Resolve(options.SubjectMapping);
     }
 
     /// <summary>
@@ -62,12 +65,31 @@ public sealed class EntityFrameworkSubjectResolver : ISubjectResolver
         using var scope = _scopeFactory.CreateScope();
         var db = (DbContext)scope.ServiceProvider.GetRequiredService(_contextType);
 
-        return await SubjectMappingLookup.HydrateAsync(
+        var subject = await SubjectMappingLookup.HydrateAsync(
                 partial,
                 _subjectMapping,
                 (map, id, ct) => EntityFrameworkSubjectFetch.FindAsync(db, map, id, ct),
                 cancellationToken)
             .ConfigureAwait(false);
+
+        if (_layout != SubjectStorageLayout.MappedLibraryRoles)
+            return subject;
+
+        var extraRoles = await db.Set<SubjectRoleEntity>()
+            .AsNoTracking()
+            .Where(x => x.SubjectId == subject.Id)
+            .Select(x => x.Role)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (extraRoles.Count == 0)
+            return subject;
+
+        var roles = new HashSet<string>(subject.Roles, StringComparer.Ordinal);
+        foreach (var role in extraRoles)
+            roles.Add(role);
+
+        return subject with { Roles = roles };
     }
 
     private async Task<Subject> HydrateBuiltInAsync(Subject partial, CancellationToken cancellationToken)
@@ -77,7 +99,6 @@ public sealed class EntityFrameworkSubjectResolver : ISubjectResolver
 
         var entity = await db.Set<SubjectEntity>()
             .AsNoTracking()
-            .Include(x => x.Roles)
             .Include(x => x.Attributes)
             .SingleOrDefaultAsync(x => x.SubjectId == partial.Id, cancellationToken)
             .ConfigureAwait(false);
@@ -85,7 +106,14 @@ public sealed class EntityFrameworkSubjectResolver : ISubjectResolver
         if (entity is null)
             throw new KeyNotFoundException($"Subject '{partial.Id}' was not found.");
 
-        var roles = new HashSet<string>(entity.Roles.Select(r => r.Role), StringComparer.Ordinal);
+        var roles = new HashSet<string>(
+            await db.Set<SubjectRoleEntity>()
+                .AsNoTracking()
+                .Where(x => x.SubjectId == entity.SubjectId)
+                .Select(x => x.Role)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false),
+            StringComparer.Ordinal);
         var attributes = entity.Attributes.ToDictionary(
             a => a.Name,
             a => AttributeValueCodec.FromJson(a.ValueJson),

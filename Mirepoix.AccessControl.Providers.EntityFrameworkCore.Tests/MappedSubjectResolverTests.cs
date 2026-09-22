@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Mirepoix.AccessControl.Providers.Entities;
 
 namespace Mirepoix.AccessControl.Providers.EntityFrameworkCore.Tests;
 
@@ -50,6 +51,21 @@ public class MappedSubjectResolverTests
                 .HasDiscriminator(x => x.Kind)
                 .HasValue<Staff>("staff")
                 .HasValue<Guest>("guest");
+            modelBuilder.ApplyAccessControl(SubjectStorageLayout.MappedLibraryRoles);
+        }
+    }
+
+    private sealed class LibraryRolesDbContext : DbContext
+    {
+        public LibraryRolesDbContext(DbContextOptions<LibraryRolesDbContext> options) : base(options) { }
+
+        public DbSet<AppUser> Users => Set<AppUser>();
+        public DbSet<SubjectRoleEntity> SubjectRoles => Set<SubjectRoleEntity>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<AppUser>();
+            modelBuilder.ApplyAccessControl(SubjectStorageLayout.MappedLibraryRoles);
         }
     }
 
@@ -145,5 +161,33 @@ public class MappedSubjectResolverTests
         Assert.Equal("Sam", subject.Attributes["Name"]);
         Assert.Equal("staff", subject.Attributes["subjectType"]);
         Assert.Contains("staff", subject.Roles);
+    }
+
+    [Fact]
+    public async Task Mapped_subject_without_role_members_unions_library_roles()
+    {
+        var dbName = Guid.NewGuid().ToString("N");
+        var services = new ServiceCollection();
+        services.AddDbContext<LibraryRolesDbContext>(o => o.UseInMemoryDatabase(dbName));
+        services.AddAccessControlSubjectProviders<LibraryRolesDbContext>(o =>
+            o.MapSubject<AppUser>(m => m.Id(x => x.Id).Type("employee").TypeAsRole()));
+
+        await using var sp = services.BuildServiceProvider();
+        await using (var scope = sp.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LibraryRolesDbContext>();
+            db.Users.Add(new AppUser { Id = "u1", Email = "a@b.c", Department = "eng" });
+            db.SubjectRoles.Add(new SubjectRoleEntity { SubjectId = "u1", Role = "EDITOR" });
+            await db.SaveChangesAsync();
+        }
+
+        var resolver = sp.GetRequiredService<ISubjectResolver>();
+        var subject = await resolver.HydrateAsync(
+            new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
+            CancellationToken.None);
+
+        Assert.Equal(2, subject.Roles.Count);
+        Assert.Contains("employee", subject.Roles);
+        Assert.Contains("EDITOR", subject.Roles);
     }
 }
