@@ -57,12 +57,19 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/artifacts/nuget"
           projects=(
             Mirepoix.AccessControl/Mirepoix.AccessControl.csproj
+            Mirepoix.AccessControl.Core/Mirepoix.AccessControl.Core.csproj
             Mirepoix.AccessControl.Engine/Mirepoix.AccessControl.Engine.csproj
+            Mirepoix.AccessControl.Engine.Client.Http/Mirepoix.AccessControl.Engine.Client.Http.csproj
+            Mirepoix.AccessControl.Engine.Server.Http/Mirepoix.AccessControl.Engine.Server.Http.csproj
             Mirepoix.AccessControl.Authorization.AspNetCore/Mirepoix.AccessControl.Authorization.AspNetCore.csproj
+            Mirepoix.AccessControl.Protocol.Http/Mirepoix.AccessControl.Protocol.Http.csproj
             Mirepoix.AccessControl.Providers/Mirepoix.AccessControl.Providers.csproj
+            Mirepoix.AccessControl.Providers.Client.Http/Mirepoix.AccessControl.Providers.Client.Http.csproj
+            Mirepoix.AccessControl.Providers.Server.Http/Mirepoix.AccessControl.Providers.Server.Http.csproj
             Mirepoix.AccessControl.Providers.SqlServer/Mirepoix.AccessControl.Providers.SqlServer.csproj
             Mirepoix.AccessControl.Providers.EntityFrameworkCore/Mirepoix.AccessControl.Providers.EntityFrameworkCore.csproj
             Mirepoix.AccessControl.Management.EntityFrameworkCore/Mirepoix.AccessControl.Management.EntityFrameworkCore.csproj
+            Mirepoix.AccessControl.Management.Server.Http/Mirepoix.AccessControl.Management.Server.Http.csproj
           )
           for p in "${projects[@]}"; do
             dotnet pack "$p" -c Release \
