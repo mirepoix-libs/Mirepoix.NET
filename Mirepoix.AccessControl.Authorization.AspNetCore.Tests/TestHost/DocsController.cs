@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Mirepoix.AccessControl.Hosting.Tests.TestHost;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore.Tests.TestHost;
 
 [ApiController]
 [Route("mvc/docs")]

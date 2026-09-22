@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Carries the principal-derived <see cref="Subject"/> and <see cref="AccessContext"/> for one HTTP check.

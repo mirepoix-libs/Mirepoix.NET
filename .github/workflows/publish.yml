@@ -58,7 +58,7 @@ jobs:
           projects=(
             Mirepoix.AccessControl/Mirepoix.AccessControl.csproj
             Mirepoix.AccessControl.Engine/Mirepoix.AccessControl.Engine.csproj
-            Mirepoix.AccessControl.Hosting/Mirepoix.AccessControl.Hosting.csproj
+            Mirepoix.AccessControl.Authorization.AspNetCore/Mirepoix.AccessControl.Authorization.AspNetCore.csproj
             Mirepoix.AccessControl.Providers/Mirepoix.AccessControl.Providers.csproj
             Mirepoix.AccessControl.Providers.SqlServer/Mirepoix.AccessControl.Providers.SqlServer.csproj
             Mirepoix.AccessControl.Providers.EntityFrameworkCore/Mirepoix.AccessControl.Providers.EntityFrameworkCore.csproj

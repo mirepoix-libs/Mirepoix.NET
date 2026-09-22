@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Runs the shared HTTP PEP for both authorization handler and endpoint filter.

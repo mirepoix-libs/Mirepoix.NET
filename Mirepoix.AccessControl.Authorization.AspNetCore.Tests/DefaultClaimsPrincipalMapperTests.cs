@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Mirepoix.AccessControl.Hosting;
+using Mirepoix.AccessControl.Authorization.AspNetCore;
 using Microsoft.AspNetCore.Http;
 
 public class DefaultClaimsPrincipalMapperTests

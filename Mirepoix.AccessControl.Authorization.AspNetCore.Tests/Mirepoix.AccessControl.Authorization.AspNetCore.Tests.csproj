@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Mirepoix.AccessControl.Hosting\Mirepoix.AccessControl.Hosting.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Authorization.AspNetCore\Mirepoix.AccessControl.Authorization.AspNetCore.csproj" />
       </ItemGroup>
 
 </Project>

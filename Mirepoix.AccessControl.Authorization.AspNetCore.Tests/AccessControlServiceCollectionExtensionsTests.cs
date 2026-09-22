@@ -1,4 +1,4 @@
-using Mirepoix.AccessControl.Hosting;
+using Mirepoix.AccessControl.Authorization.AspNetCore;
 using Mirepoix.AccessControl.Policy;
 using Microsoft.Extensions.DependencyInjection;
 

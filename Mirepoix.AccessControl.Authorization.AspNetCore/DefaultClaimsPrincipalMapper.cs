@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Builds an <see cref="AccessPrincipalSeed"/> from the authenticated principal's claims.

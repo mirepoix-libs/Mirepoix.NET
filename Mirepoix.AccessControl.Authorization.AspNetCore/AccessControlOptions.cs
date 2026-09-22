@@ -1,4 +1,4 @@
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Holds shared Hosting constants used by DI registration and endpoint helpers.

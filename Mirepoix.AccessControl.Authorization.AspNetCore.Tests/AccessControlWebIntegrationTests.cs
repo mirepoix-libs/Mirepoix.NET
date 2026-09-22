@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
-using Mirepoix.AccessControl.Hosting.Tests.TestHost;
+using Mirepoix.AccessControl.Authorization.AspNetCore.Tests.TestHost;
 
-namespace Mirepoix.AccessControl.Hosting.Tests;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore.Tests;
 
 public class AccessControlWebIntegrationTests : IClassFixture<AccessControlApiFactory>
 {

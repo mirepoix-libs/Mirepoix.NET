@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Mirepoix.AccessControl.Hosting.Tests.TestHost;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore.Tests.TestHost;
 
 /// <summary>
 /// Auth header: Authorization: Test {userId}:{role}

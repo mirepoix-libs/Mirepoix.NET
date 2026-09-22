@@ -1,4 +1,4 @@
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Attaches optional resource type and route-key metadata used to build a partial <see cref="Resource"/>.

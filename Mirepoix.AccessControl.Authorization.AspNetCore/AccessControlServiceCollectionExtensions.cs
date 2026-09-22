@@ -2,7 +2,7 @@ using Mirepoix.AccessControl.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Registers AccessControl Hosting services via <see cref="AccessControlBuilder"/>.

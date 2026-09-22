@@ -1,4 +1,4 @@
-namespace Mirepoix.AccessControl.Hosting;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Attaches the required operation string to an MVC action or endpoint.

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Mirepoix.AccessControl.Hosting.Tests.TestHost;
+namespace Mirepoix.AccessControl.Authorization.AspNetCore.Tests.TestHost;
 
 /// <summary>
 /// In-process test API: AddAccessControl setup, MVC attributes, minimal endpoint extensions, filter PEP.
