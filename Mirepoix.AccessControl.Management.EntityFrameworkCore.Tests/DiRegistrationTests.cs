@@ -19,7 +19,7 @@ public sealed class DiRegistrationTests
     }
 
     [Fact]
-    public void Mapped_app_owned_roles_omit_role_assignment_store()
+    public void Mapped_app_owned_roles_omit_subject_store()
     {
         var services = new ServiceCollection();
         services.AddDbContext<AppDbContext>(db => db.UseInMemoryDatabase("management-di-mapped"));
@@ -33,7 +33,7 @@ public sealed class DiRegistrationTests
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
 
-        Assert.Null(scope.ServiceProvider.GetService<IRoleAssignmentStore>());
+        Assert.Null(scope.ServiceProvider.GetService<ISubjectStore>());
         AssertAlwaysRegistered(scope.ServiceProvider);
     }
 
@@ -50,8 +50,8 @@ public sealed class DiRegistrationTests
         using var scope = provider.CreateScope();
 
         AssertAlwaysRegistered(scope.ServiceProvider);
-        Assert.IsType<EntityFrameworkRoleAssignmentStore>(
-            scope.ServiceProvider.GetRequiredService<IRoleAssignmentStore>());
+        Assert.IsType<EntityFrameworkSubjectStore>(
+            scope.ServiceProvider.GetRequiredService<ISubjectStore>());
     }
 
     [Fact]
@@ -67,16 +67,15 @@ public sealed class DiRegistrationTests
         using var scope = provider.CreateScope();
 
         AssertAlwaysRegistered(scope.ServiceProvider);
-        Assert.IsType<EntityFrameworkRoleAssignmentStore>(
-            scope.ServiceProvider.GetRequiredService<IRoleAssignmentStore>());
+        Assert.IsType<EntityFrameworkSubjectStore>(
+            scope.ServiceProvider.GetRequiredService<ISubjectStore>());
     }
 
     private static void AssertAlwaysRegistered(IServiceProvider provider)
     {
         Assert.IsType<EntityFrameworkRoleCatalog>(provider.GetRequiredService<IRoleCatalog>());
         Assert.IsType<EntityFrameworkSodConstraintStore>(provider.GetRequiredService<ISodConstraintStore>());
-        Assert.IsType<EntityFrameworkOwnershipHelper>(provider.GetRequiredService<IOwnershipHelper>());
-        Assert.IsType<EntityFrameworkLabelHelper>(provider.GetRequiredService<ILabelHelper>());
+        Assert.IsType<EntityFrameworkResourceStore>(provider.GetRequiredService<IResourceStore>());
         Assert.IsType<EntityFrameworkPolicySetEditor>(provider.GetRequiredService<IPolicySetEditor>());
     }
 

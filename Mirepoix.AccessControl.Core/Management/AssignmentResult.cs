@@ -1,7 +1,7 @@
 namespace Mirepoix.AccessControl.Management;
 
 /// <summary>
-/// Holds the result of <see cref="IRoleAssignmentStore.Assign"/>. On conflict, <see cref="ConstraintId"/> and
+/// Holds the result of a role assignment attempt. On conflict, <see cref="ConstraintId"/> and
 /// <see cref="Roles"/> describe which constraint and overlapping roles blocked the assign.
 /// </summary>
 /// <param name="Outcome">Holds Assigned or SodConflict.</param>

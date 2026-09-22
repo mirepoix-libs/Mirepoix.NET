@@ -1,14 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Mirepoix.AccessControl</RootNamespace>
-    <AssemblyName>Mirepoix.AccessControl.Engine</AssemblyName>
+    <AssemblyName>Mirepoix.AccessControl.Core</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
     <ProjectReference Include="..\Mirepoix.AccessControl\Mirepoix.AccessControl.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -1,5 +1,4 @@
 using Mirepoix.AccessControl;
-using Mirepoix.AccessControl.Management;
 using Mirepoix.AccessControl.Policy;
 using Mirepoix.AccessControl.Providers;
 
@@ -8,7 +7,7 @@ public class LocalCheckFlowTests
     [Fact]
     public async Task Check_allows_editor_on_owned_draft_doc()
     {
-        var (mgr, checker) = WireSeededEditorDraft();
+        var (subjects, _, checker) = WireSeededEditorDraft();
 
         var decision = await checker.CheckAsync(EditDoc1(), CancellationToken.None);
 
@@ -18,13 +17,13 @@ public class LocalCheckFlowTests
         var hit = Assert.Single(decision.PolicyHits);
         Assert.Equal("editor-draft", hit.PolicyId);
         Assert.Equal(AuthorizationResult.Allow, hit.Effect);
-        Assert.Contains("EDITOR", mgr.Assignments.GetRoles("u1"));
+        Assert.Contains("EDITOR", subjects["u1"].Roles);
     }
 
     [Fact]
     public async Task Check_defaults_when_doc_is_not_draft()
     {
-        var (_, checker) = WireSeededEditorDraft();
+        var (_, _, checker) = WireSeededEditorDraft();
         var request = new AuthorizationRequest(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
             new Resource("doc", "published", new Dictionary<string, object?>()),
@@ -40,34 +39,15 @@ public class LocalCheckFlowTests
     }
 
     [Fact]
-    public async Task Sod_conflict_leaves_editor_role_and_check_still_allows()
-    {
-        var (mgr, checker) = WireSeededEditorDraft();
-
-        var conflict = mgr.Assignments.Assign("u1", "APPROVER");
-
-        Assert.Equal(AssignmentOutcome.SodConflict, conflict.Outcome);
-        Assert.Equal("sod-edit-approve", conflict.ConstraintId);
-        Assert.Equal(new HashSet<string> { "EDITOR", "APPROVER" }, conflict.Roles!.ToHashSet());
-        Assert.DoesNotContain("APPROVER", mgr.Assignments.GetRoles("u1"));
-
-        var decision = await checker.CheckAsync(EditDoc1(), CancellationToken.None);
-
-        Assert.Equal(AuthorizationResult.Allow, decision.Result);
-        Assert.Equal(DecisionStatus.Success, decision.Status);
-        Assert.Equal("v1", decision.PolicySetVersion);
-    }
-
-    [Fact]
     public async Task Policy_swap_changes_version_and_defaults_editor()
     {
-        var (mgr, checker) = WireSeededEditorDraft();
+        var (_, policySource, checker) = WireSeededEditorDraft();
 
         var before = await checker.CheckAsync(EditDoc1(), CancellationToken.None);
         Assert.Equal(AuthorizationResult.Allow, before.Result);
         Assert.Equal("v1", before.PolicySetVersion);
 
-        mgr.Policies.Replace(new PolicySet("v2", Array.Empty<Policy>()));
+        policySource.Replace(new PolicySet("v2", Array.Empty<Policy>()));
 
         var after = await checker.CheckAsync(EditDoc1(), CancellationToken.None);
 
@@ -77,24 +57,38 @@ public class LocalCheckFlowTests
         Assert.Empty(after.PolicyHits);
     }
 
-    private static (InMemoryAccessManager Mgr, LocalAccessChecker Checker) WireSeededEditorDraft()
+    private static (
+        IReadOnlyDictionary<string, Subject> Subjects,
+        MemoryPolicySource PolicySource,
+        LocalAccessChecker Checker) WireSeededEditorDraft()
     {
-        var mgr = InMemoryAccessManager.CreateEmpty();
-        mgr.RoleCatalog.Add(new Role("EDITOR", "edits drafts"));
-        mgr.RoleCatalog.Add(new Role("APPROVER", "approves"));
-        mgr.SodConstraints.Add(new SodConstraint(
-            "sod-edit-approve",
-            new HashSet<string> { "EDITOR", "APPROVER" }));
-        Assert.Equal(AssignmentOutcome.Assigned, mgr.Assignments.Assign("u1", "EDITOR").Outcome);
-        mgr.Ownership.SetOwner("doc", "1", "u1");
-        mgr.Labels.SetResourceLabel("doc", "1", "status", "draft");
-        mgr.Ownership.SetOwner("doc", "published", "u1");
-        mgr.Labels.SetResourceLabel("doc", "published", "status", "published");
-        mgr.Policies.Replace(EditorDraftSet("v1"));
-
-        var hydrator = new CompositeBundleHydrator(mgr.SubjectResolver, mgr.ResourceResolver);
-        var checker = new LocalAccessChecker(mgr.PolicySource, hydrator);
-        return (mgr, checker);
+        IReadOnlyDictionary<string, Subject> subjects = new Dictionary<string, Subject>
+        {
+            ["u1"] = new(
+                "u1",
+                new HashSet<string> { "EDITOR" },
+                new Dictionary<string, object?>()),
+        };
+        IReadOnlyDictionary<(string Type, string Id), IReadOnlyDictionary<string, object?>> resources =
+            new Dictionary<(string Type, string Id), IReadOnlyDictionary<string, object?>>
+            {
+                [("doc", "1")] = new Dictionary<string, object?>
+                {
+                    ["ownerId"] = "u1",
+                    ["status"] = "draft",
+                },
+                [("doc", "published")] = new Dictionary<string, object?>
+                {
+                    ["ownerId"] = "u1",
+                    ["status"] = "published",
+                },
+            };
+        var policySource = new MemoryPolicySource(EditorDraftSet("v1"));
+        var hydrator = new CompositeBundleHydrator(
+            new InMemorySubjectResolver(subjects),
+            new InMemoryResourceResolver(resources));
+        var checker = new LocalAccessChecker(policySource, hydrator);
+        return (subjects, policySource, checker);
     }
 
     private static PolicySet EditorDraftSet(string version) =>

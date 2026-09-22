@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Mirepoix.AccessControl.Engine\Mirepoix.AccessControl.Engine.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.SqlServer.Tests" />

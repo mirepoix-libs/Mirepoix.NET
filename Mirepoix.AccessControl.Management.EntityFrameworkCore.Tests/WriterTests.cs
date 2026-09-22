@@ -28,27 +28,27 @@ public sealed class WriterTests
     }
 
     [Fact]
-    public async Task Role_assignment_returns_conflict_without_mutating_then_allows_after_revoke()
+    public async Task Subject_store_returns_conflict_without_mutating_then_allows_after_revoke()
     {
         await using var db = CreateContext();
         var constraints = new EntityFrameworkSodConstraintStore(db);
-        var assignments = new EntityFrameworkRoleAssignmentStore(db, constraints);
+        var subjects = new EntityFrameworkSubjectStore(db, constraints, SubjectStorageLayout.Native);
         await constraints.AddAsync(new SodConstraint(
             "finance-sod",
             new HashSet<string> { "REQUESTER", "APPROVER" }));
 
-        Assert.Equal(AssignmentOutcome.Assigned, (await assignments.AssignAsync("alice", "REQUESTER")).Outcome);
+        Assert.Equal(AssignmentOutcome.Assigned, (await subjects.AssignRoleAsync("alice", "REQUESTER")).Outcome);
 
-        var conflict = await assignments.AssignAsync("alice", "APPROVER");
+        var conflict = await subjects.AssignRoleAsync("alice", "APPROVER");
         Assert.Equal(AssignmentOutcome.SodConflict, conflict.Outcome);
         Assert.Equal("finance-sod", conflict.ConstraintId);
         Assert.Equal(
             new HashSet<string> { "REQUESTER", "APPROVER" },
             conflict.Roles!.ToHashSet());
-        Assert.Equal(new HashSet<string> { "REQUESTER" }, await assignments.GetRolesAsync("alice"));
+        Assert.Equal(new HashSet<string> { "REQUESTER" }, await subjects.GetRolesAsync("alice"));
 
-        await assignments.RevokeAsync("alice", "REQUESTER");
-        Assert.Equal(AssignmentOutcome.Assigned, (await assignments.AssignAsync("alice", "APPROVER")).Outcome);
+        await subjects.RevokeRoleAsync("alice", "REQUESTER");
+        Assert.Equal(AssignmentOutcome.Assigned, (await subjects.AssignRoleAsync("alice", "APPROVER")).Outcome);
     }
 
     [Fact]
@@ -109,48 +109,75 @@ public sealed class WriterTests
     }
 
     [Fact]
-    public async Task Subject_labels_throw_when_subject_layout_is_mapped()
+    public async Task Mapped_library_roles_reject_header_and_attributes_but_support_roles()
     {
         var providerOptions = new EntityFrameworkProviderOptions();
         providerOptions.MapSubject<MappedUser>(map => map.Id(user => user.Id));
         await using var db = CreateContext(providerOptions);
-        var labels = new EntityFrameworkLabelHelper(db, providerOptions);
+        var constraints = new EntityFrameworkSodConstraintStore(db);
+        var subjects = new EntityFrameworkSubjectStore(
+            db,
+            constraints,
+            SubjectStorageLayout.MappedLibraryRoles);
 
+        var create = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => subjects.CreateAsync("alice"));
         var set = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => labels.SetSubjectLabelAsync("alice", "department", "finance"));
-        var clear = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => labels.ClearSubjectLabelAsync("alice", "department"));
+            () => subjects.SetAttributeAsync("alice", "department", "finance"));
 
         const string message =
-            "Subject labels are not managed by AccessControl when subject entity maps are configured; the application owns mapped subject storage.";
+            "Subject headers and attributes are not managed by AccessControl for MappedLibraryRoles; the application owns that storage. Register a custom ISubjectStore or use Native layout.";
+        Assert.Equal(message, create.Message);
         Assert.Equal(message, set.Message);
-        Assert.Equal(message, clear.Message);
+        Assert.Equal(
+            AssignmentOutcome.Assigned,
+            (await subjects.AssignRoleAsync("alice", "EDITOR")).Outcome);
+        Assert.Equal(new HashSet<string> { "EDITOR" }, await subjects.GetRolesAsync("alice"));
     }
 
     [Fact]
-    public async Task Ownership_and_labels_upsert_and_clear_encoded_attributes()
+    public async Task Resource_store_upserts_reads_and_clears_encoded_attributes()
     {
         await using var db = CreateContext();
-        var ownership = new EntityFrameworkOwnershipHelper(db);
-        var labels = new EntityFrameworkLabelHelper(db, new EntityFrameworkProviderOptions());
+        var resources = new EntityFrameworkResourceStore(db);
 
-        await ownership.SetOwnerAsync("invoice", "42", "alice");
-        await labels.SetResourceLabelAsync("invoice", "42", "region", "west");
-        await labels.SetSubjectLabelAsync("alice", "level", 7);
+        await resources.SetOwnerAsync("invoice", "42", "alice");
+        await resources.SetAttributeAsync("invoice", "42", "region", "west");
 
         var owner = await db.ResourceAttributes.SingleAsync(x => x.Name == "ownerId");
         Assert.Equal("alice", AttributeValueCodec.FromJson(owner.ValueJson));
         Assert.Equal(2, await db.ResourceAttributes.CountAsync());
+        Assert.Equal("alice", await resources.GetOwnerAsync("invoice", "42"));
         Assert.Equal(
-            7,
-            Convert.ToInt32(AttributeValueCodec.FromJson(
-                (await db.SubjectAttributes.SingleAsync()).ValueJson)));
+            "west",
+            (await resources.GetAttributesAsync("invoice", "42"))["region"]);
 
-        await ownership.ClearOwnerAsync("invoice", "42");
-        await labels.ClearResourceLabelAsync("invoice", "42", "region");
-        await labels.ClearSubjectLabelAsync("alice", "level");
+        await resources.ClearOwnerAsync("invoice", "42");
+        await resources.ClearAttributeAsync("invoice", "42", "region");
         Assert.Empty(await db.ResourceAttributes.ToListAsync());
+        Assert.Null(await resources.GetOwnerAsync("invoice", "42"));
+    }
+
+    [Fact]
+    public async Task Native_subject_store_manages_headers_attributes_and_delete_cleanup()
+    {
+        await using var db = CreateContext();
+        var constraints = new EntityFrameworkSodConstraintStore(db);
+        var subjects = new EntityFrameworkSubjectStore(db, constraints, SubjectStorageLayout.Native);
+
+        await subjects.CreateAsync("alice");
+        await subjects.SetAttributeAsync("alice", "level", 7);
+        await subjects.AssignRoleAsync("alice", "EDITOR");
+
+        Assert.True(await subjects.ExistsAsync("alice"));
+        Assert.Equal(new[] { "alice" }, await subjects.ListIdsAsync());
+        Assert.Equal(7, Convert.ToInt32((await subjects.GetAttributesAsync("alice"))["level"]));
+
+        await subjects.DeleteAsync("alice");
+
+        Assert.False(await subjects.ExistsAsync("alice"));
         Assert.Empty(await db.SubjectAttributes.ToListAsync());
+        Assert.Empty(await db.SubjectRoles.ToListAsync());
     }
 
     private static AccessControlDbContext CreateContext(

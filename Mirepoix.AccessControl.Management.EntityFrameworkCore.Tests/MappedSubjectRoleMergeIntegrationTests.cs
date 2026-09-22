@@ -36,10 +36,10 @@ public sealed class MappedSubjectRoleMergeIntegrationTests
                     "finance-sod",
                     new HashSet<string> { "REQUESTER", "APPROVER" }));
 
-            var assignments = scope.ServiceProvider.GetRequiredService<IRoleAssignmentStore>();
+            var subjects = scope.ServiceProvider.GetRequiredService<ISubjectStore>();
             Assert.Equal(
                 AssignmentOutcome.Assigned,
-                (await assignments.AssignAsync("alice", "REQUESTER")).Outcome);
+                (await subjects.AssignRoleAsync("alice", "REQUESTER")).Outcome);
         }
 
         var hydrated = await provider.GetRequiredService<ISubjectResolver>().HydrateAsync(
@@ -48,15 +48,15 @@ public sealed class MappedSubjectRoleMergeIntegrationTests
         Assert.Equal(new HashSet<string> { "REQUESTER" }, hydrated.Roles);
 
         await using var verificationScope = provider.CreateAsyncScope();
-        var verificationAssignments =
-            verificationScope.ServiceProvider.GetRequiredService<IRoleAssignmentStore>();
-        var conflict = await verificationAssignments.AssignAsync("alice", "APPROVER");
+        var verificationSubjects =
+            verificationScope.ServiceProvider.GetRequiredService<ISubjectStore>();
+        var conflict = await verificationSubjects.AssignRoleAsync("alice", "APPROVER");
 
         Assert.Equal(AssignmentOutcome.SodConflict, conflict.Outcome);
         Assert.Equal("finance-sod", conflict.ConstraintId);
         Assert.Equal(
             new HashSet<string> { "REQUESTER" },
-            await verificationAssignments.GetRolesAsync("alice"));
+            await verificationSubjects.GetRolesAsync("alice"));
     }
 
     [Fact]
@@ -84,10 +84,10 @@ public sealed class MappedSubjectRoleMergeIntegrationTests
             db.Users.Add(new AppUser { Id = "mapped-alice", Role = "IGNORED" });
             await db.SaveChangesAsync();
 
-            var assignments = scope.ServiceProvider.GetRequiredService<IRoleAssignmentStore>();
+            var subjects = scope.ServiceProvider.GetRequiredService<ISubjectStore>();
             Assert.Equal(
                 AssignmentOutcome.Assigned,
-                (await assignments.AssignAsync("mapped-alice", "EDITOR")).Outcome);
+                (await subjects.AssignRoleAsync("mapped-alice", "EDITOR")).Outcome);
         }
 
         var hydrated = await provider.GetRequiredService<ISubjectResolver>().HydrateAsync(
@@ -98,7 +98,7 @@ public sealed class MappedSubjectRoleMergeIntegrationTests
     }
 
     [Fact]
-    public async Task Mapped_app_owned_roles_omit_assignment_store_and_subject_role_model()
+    public async Task Mapped_app_owned_roles_omit_subject_store_and_subject_role_model()
     {
         await using var database = await TestDatabase.TryCreateAsync();
         if (database is null)
@@ -118,7 +118,7 @@ public sealed class MappedSubjectRoleMergeIntegrationTests
         var db = scope.ServiceProvider.GetRequiredService<AppOwnedRolesDbContext>();
         await db.Database.EnsureCreatedAsync();
 
-        Assert.Null(scope.ServiceProvider.GetService<IRoleAssignmentStore>());
+        Assert.Null(scope.ServiceProvider.GetService<ISubjectStore>());
         Assert.Null(db.Model.FindEntityType(typeof(SubjectRoleEntity)));
 
         await using var command = db.Database.GetDbConnection().CreateCommand();

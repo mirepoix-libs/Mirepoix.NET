@@ -79,20 +79,19 @@ public static class AccessControlManagementServiceCollectionExtensions
             new EntityFrameworkRoleCatalog(provider.GetRequiredService<TContext>()));
         services.AddScoped<ISodConstraintStore>(provider =>
             new EntityFrameworkSodConstraintStore(provider.GetRequiredService<TContext>()));
-        services.AddScoped<IOwnershipHelper>(provider =>
-            new EntityFrameworkOwnershipHelper(provider.GetRequiredService<TContext>()));
-        services.AddScoped<ILabelHelper>(provider =>
-            new EntityFrameworkLabelHelper(provider.GetRequiredService<TContext>(), options));
         services.AddScoped<IPolicySetEditor>(provider =>
             new EntityFrameworkPolicySetEditor(provider.GetRequiredService<TContext>()));
+        services.AddScoped<IResourceStore>(provider =>
+            new EntityFrameworkResourceStore(provider.GetRequiredService<TContext>()));
 
         var layout = SubjectStorageLayoutResolver.Resolve(options.SubjectMapping);
         if (layout is SubjectStorageLayout.Native or SubjectStorageLayout.MappedLibraryRoles)
         {
-            services.AddScoped<IRoleAssignmentStore>(provider =>
-                new EntityFrameworkRoleAssignmentStore(
+            services.AddScoped<ISubjectStore>(provider =>
+                new EntityFrameworkSubjectStore(
                     provider.GetRequiredService<TContext>(),
-                    provider.GetRequiredService<ISodConstraintStore>()));
+                    provider.GetRequiredService<ISodConstraintStore>(),
+                    layout));
         }
 
         return services;
