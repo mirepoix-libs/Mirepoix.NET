@@ -5,6 +5,19 @@ using Microsoft.Extensions.DependencyInjection;
 public class AccessControlServiceCollectionExtensionsTests
 {
     [Fact]
+    public void AddAccessControl_allows_pre_registered_IAccessChecker_without_policy_source()
+    {
+        var services = new ServiceCollection();
+        var fake = new FakeChecker();
+        services.AddSingleton<IAccessChecker>(fake);
+
+        services.AddAccessControl();
+
+        using var sp = services.BuildServiceProvider();
+        Assert.Same(fake, sp.GetRequiredService<IAccessChecker>());
+    }
+
+    [Fact]
     public void AddAccessControl_throws_without_policy_source()
     {
         var services = new ServiceCollection();
@@ -28,5 +41,15 @@ public class AccessControlServiceCollectionExtensionsTests
         Assert.NotNull(checker);
         Assert.NotNull(sp.GetRequiredService<IClaimsPrincipalMapper>());
         Assert.Equal(AccessControlOptions.PolicyName, "MirepoixAccess");
+    }
+
+    private sealed class FakeChecker : IAccessChecker
+    {
+        public Task<AccessDecision> CheckAsync(AuthorizationRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(new AccessDecision(
+                AuthorizationResult.Allow,
+                Array.Empty<PolicyHit>(),
+                DecisionStatus.Success,
+                "v1"));
     }
 }

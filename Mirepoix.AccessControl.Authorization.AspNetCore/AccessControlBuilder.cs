@@ -9,7 +9,7 @@ namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 
 /// <summary>
 /// Configures Hosting DI: policy source, hydrator, combination strategy, claims mapper, checker, and PEPs.
-/// Completion fails fast when no <see cref="IPolicySource"/> is registered.
+/// Completion fails fast when neither <see cref="IPolicySource"/> nor <see cref="IAccessChecker"/> is registered.
 /// </summary>
 public sealed class AccessControlBuilder
 {
@@ -132,12 +132,13 @@ public sealed class AccessControlBuilder
     }
 
     /// <summary>
-    /// Completes DI: validates <see cref="IPolicySource"/>, then TryAdds defaults for mapper, hydrator,
-    /// combination strategy, <see cref="LocalAccessChecker"/>, authorization handler, policy, and
-    /// scoped <see cref="AccessEndpointFilter"/>.
+    /// Completes DI: validates <see cref="IPolicySource"/> or pre-registered <see cref="IAccessChecker"/>, then TryAdds
+    /// defaults for mapper, hydrator, combination strategy, <see cref="LocalAccessChecker"/>, authorization handler,
+    /// policy, and scoped <see cref="AccessEndpointFilter"/>.
     /// </summary>
     /// <exception cref="InvalidOperationException">
-    /// Thrown when neither this builder nor the service collection has an <see cref="IPolicySource"/>.
+    /// Thrown when neither this builder nor the service collection has an <see cref="IPolicySource"/> or
+    /// <see cref="IAccessChecker"/>.
     /// </exception>
     /// <remarks>
     /// Defaults when absent: <see cref="DefaultClaimsPrincipalMapper"/>,
@@ -146,8 +147,10 @@ public sealed class AccessControlBuilder
     /// </remarks>
     internal void Complete()
     {
+        var checkerAlreadyRegistered = _services.Any(d => d.ServiceType == typeof(IAccessChecker));
         if (!_policySourceRegistered
-            && !_services.Any(d => d.ServiceType == typeof(IPolicySource)))
+            && !_services.Any(d => d.ServiceType == typeof(IPolicySource))
+            && !checkerAlreadyRegistered)
         {
             throw new InvalidOperationException(
                 "AccessControl requires an IPolicySource. Call UseMemoryPolicySet, UsePolicySource, or register one first (e.g. AddAccessControlProviders).");
