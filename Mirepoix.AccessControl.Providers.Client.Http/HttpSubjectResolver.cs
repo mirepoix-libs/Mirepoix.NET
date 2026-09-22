@@ -1,0 +1,49 @@
+using System.Text;
+using System.Text.Json;
+using Mirepoix.AccessControl.Protocol.Http;
+using Mirepoix.AccessControl.Providers;
+
+namespace Mirepoix.AccessControl.Providers.Client.Http;
+
+/// <summary>
+/// Remote <see cref="ISubjectResolver"/> that POSTs a partial subject to a PIP HTTP endpoint.
+/// </summary>
+public sealed class HttpSubjectResolver : ISubjectResolver
+{
+    private readonly HttpClient _http;
+
+    /// <summary>Creates a resolver that uses <paramref name="http"/> (typically with <see cref="HttpClient.BaseAddress"/> set).</summary>
+    public HttpSubjectResolver(HttpClient http)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        _http = http;
+    }
+
+    /// <inheritdoc />
+    public async Task<Subject> HydrateAsync(Subject partial, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(partial);
+
+        var dto = SubjectDto.FromDomain(partial);
+        using var content = new StringContent(
+            JsonSerializer.Serialize(dto, AccessControlHttpJson.DefaultOptions),
+            Encoding.UTF8,
+            "application/json");
+
+        using var response = await _http.PostAsync(
+            new Uri(AccessControlHttpRoutes.AbsoluteProvidersSubjectHydratePath, UriKind.Relative),
+            content,
+            cancellationToken).ConfigureAwait(false);
+
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var result = await JsonSerializer.DeserializeAsync<SubjectDto>(
+            stream,
+            AccessControlHttpJson.DefaultOptions,
+            cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Empty PIP subject response.");
+
+        return result.ToDomain();
+    }
+}
