@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Mirepoix.AccessControl.Providers;
 
@@ -13,7 +14,7 @@ public sealed class ResourceEntityMapBuilder<T>
     private string? _type;
     private PropertyInfo? _idMember;
     private PropertyInfo? _ownerMember;
-    private Func<string, CancellationToken, Task<T?>>? _load;
+    private Func<IServiceProvider, string, CancellationToken, Task<T?>>? _load;
     private readonly HashSet<string> _excluded = new(StringComparer.Ordinal);
     private readonly HashSet<string> _includeOnly = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _renames = new(StringComparer.Ordinal);
@@ -88,9 +89,36 @@ public sealed class ResourceEntityMapBuilder<T>
         return this;
     }
 
-    /// <summary>Sets the required asynchronous entity loader.</summary>
+    /// <summary>
+    /// Sets a loader that does not use DI (tests / static data).
+    /// </summary>
     public ResourceEntityMapBuilder<T> Load(
         Func<string, CancellationToken, Task<T?>> load)
+    {
+        ArgumentNullException.ThrowIfNull(load);
+        _load = (_, id, cancellationToken) => load(id, cancellationToken);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a loader that resolves <typeparamref name="TService"/> from the current DI scope.
+    /// </summary>
+    /// <typeparam name="TService">Service type registered in DI (any lifetime).</typeparam>
+    public ResourceEntityMapBuilder<T> Load<TService>(
+        Func<TService, string, CancellationToken, Task<T?>> load)
+        where TService : notnull
+    {
+        ArgumentNullException.ThrowIfNull(load);
+        _load = (serviceProvider, id, cancellationToken) =>
+            load(serviceProvider.GetRequiredService<TService>(), id, cancellationToken);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a loader that receives the current DI scope (multiple services / advanced cases).
+    /// </summary>
+    public ResourceEntityMapBuilder<T> Load(
+        Func<IServiceProvider, string, CancellationToken, Task<T?>> load)
     {
         ArgumentNullException.ThrowIfNull(load);
         _load = load;
@@ -138,7 +166,8 @@ public sealed class ResourceEntityMapBuilder<T>
             IdMember = idMember,
             OwnerMember = ownerMember,
             AttributeMembers = attributeMembers,
-            Load = async (id, cancellationToken) => await load(id, cancellationToken).ConfigureAwait(false),
+            Load = async (serviceProvider, id, cancellationToken) =>
+                await load(serviceProvider, id, cancellationToken).ConfigureAwait(false),
         };
     }
 

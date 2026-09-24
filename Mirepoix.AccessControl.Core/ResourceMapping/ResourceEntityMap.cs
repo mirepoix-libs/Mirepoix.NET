@@ -22,8 +22,12 @@ public sealed class ResourceEntityMap
     /// <summary>Gets properties exported as resource attributes.</summary>
     public required IReadOnlyList<MappedResourceAttributeMember> AttributeMembers { get; init; }
 
-    /// <summary>Gets the domain entity loader.</summary>
-    public required Func<string, CancellationToken, Task<object?>> Load { get; init; }
+    /// <summary>
+    /// Gets the domain entity loader. Receives the current DI scope so
+    /// <c>Load&lt;TService&gt;</c> / <see cref="IServiceProvider"/> overloads can resolve services.
+    /// Plain <c>Load(Func&lt;string, …&gt;)</c> ignores the provider.
+    /// </summary>
+    public required Func<IServiceProvider, string, CancellationToken, Task<object?>> Load { get; init; }
 }
 
 /// <summary>

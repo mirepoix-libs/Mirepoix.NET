@@ -190,6 +190,73 @@ public sealed class AccessControlResourceServiceCollectionExtensionsTests
         Assert.Equal("draft", attribute.Value);
     }
 
+    [Fact]
+    public async Task AddAccessControlResourceMap_LoadTypedService_ResolvesFromCurrentScope()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<DocumentStore>();
+        services.AddAccessControlResourceMap<Document>(map => map
+            .Type("doc")
+            .Id(document => document.Id)
+            .Attribute(document => document.Status, "status")
+            .Load<DocumentStore>((store, id, ct) => store.FindAsync(id, ct)));
+        await using var provider = services.BuildServiceProvider();
+
+        await using var firstScope = provider.CreateAsyncScope();
+        var firstStore = firstScope.ServiceProvider.GetRequiredService<DocumentStore>();
+        var first = await firstScope.ServiceProvider
+            .GetRequiredService<IResourceHydrator>()
+            .HydrateAsync(
+                new Resource("doc", "1", new Dictionary<string, object?>()),
+                CancellationToken.None);
+
+        Assert.Equal("from-store", first.Attributes["status"]);
+        Assert.Equal(1, firstStore.FindCount);
+
+        await using var secondScope = provider.CreateAsyncScope();
+        var secondStore = secondScope.ServiceProvider.GetRequiredService<DocumentStore>();
+        await secondScope.ServiceProvider
+            .GetRequiredService<IResourceHydrator>()
+            .HydrateAsync(
+                new Resource("doc", "2", new Dictionary<string, object?>()),
+                CancellationToken.None);
+
+        Assert.Equal(1, firstStore.FindCount);
+        Assert.Equal(1, secondStore.FindCount);
+        Assert.NotSame(firstStore, secondStore);
+    }
+
+    [Fact]
+    public async Task AddAccessControlResourceMap_LoadServiceProvider_ResolvesMultipleServices()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(new DocumentLookup("singleton-status"));
+        services.AddScoped<DocumentStore>();
+        services.AddAccessControlResourceMap<Document>(map => map
+            .Type("doc")
+            .Id(document => document.Id)
+            .Attribute(document => document.Status, "status")
+            .Load(async (sp, id, ct) =>
+            {
+                var lookup = sp.GetRequiredService<DocumentLookup>();
+                var store = sp.GetRequiredService<DocumentStore>();
+                var document = await store.FindAsync(id, ct).ConfigureAwait(false);
+                return document is null
+                    ? null
+                    : new Document { Id = id, Status = lookup.Status };
+            }));
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var resource = await scope.ServiceProvider
+            .GetRequiredService<IResourceHydrator>()
+            .HydrateAsync(
+                new Resource("doc", "9", new Dictionary<string, object?>()),
+                CancellationToken.None);
+
+        Assert.Equal("singleton-status", resource.Attributes["status"]);
+    }
+
     private sealed class Document
     {
         public string Id { get; init; } = "";
@@ -199,6 +266,26 @@ public sealed class AccessControlResourceServiceCollectionExtensionsTests
         public string Status { get; init; } = "";
 
         public string InternalNote { get; init; } = "";
+    }
+
+    private sealed class DocumentLookup(string status)
+    {
+        public string Status { get; } = status;
+    }
+
+    private sealed class DocumentStore
+    {
+        public int FindCount { get; private set; }
+
+        public Task<Document?> FindAsync(string id, CancellationToken cancellationToken)
+        {
+            FindCount++;
+            return Task.FromResult<Document?>(new Document
+            {
+                Id = id,
+                Status = "from-store",
+            });
+        }
     }
 
     private sealed class Invoice;

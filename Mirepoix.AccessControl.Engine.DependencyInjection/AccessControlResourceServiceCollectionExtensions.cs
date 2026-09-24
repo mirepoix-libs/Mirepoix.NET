@@ -84,7 +84,7 @@ public static class AccessControlResourceServiceCollectionExtensions
         var map = builder.Build();
         ThrowIfTypeAlreadyRegistered(services, map.Type);
 
-        services.AddScoped(_ => new MappedResourceResolver<TResource>(map));
+        services.AddScoped(serviceProvider => new MappedResourceResolver<TResource>(map, serviceProvider));
         services.AddScoped<IResourceResolver<TResource>>(serviceProvider =>
             serviceProvider.GetRequiredService<MappedResourceResolver<TResource>>());
         services.AddSingleton(new ResourceResolverRegistration

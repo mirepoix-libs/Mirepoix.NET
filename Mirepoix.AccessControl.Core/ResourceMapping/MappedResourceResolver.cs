@@ -8,11 +8,16 @@ public sealed class MappedResourceResolver<T> : IResourceResolver<T>
     where T : class
 {
     private readonly ResourceEntityMap _map;
+    private readonly IServiceProvider _services;
 
-    /// <summary>Creates a resolver backed by <paramref name="map"/>.</summary>
-    public MappedResourceResolver(ResourceEntityMap map)
+    /// <summary>
+    /// Creates a resolver backed by <paramref name="map"/>, resolving load services from
+    /// <paramref name="services"/> (typically the current DI scope).
+    /// </summary>
+    public MappedResourceResolver(ResourceEntityMap map, IServiceProvider services)
     {
         ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(services);
         if (map.ClrType != typeof(T))
         {
             throw new ArgumentException(
@@ -21,6 +26,7 @@ public sealed class MappedResourceResolver<T> : IResourceResolver<T>
         }
 
         _map = map;
+        _services = services;
     }
 
     /// <inheritdoc />
@@ -28,7 +34,7 @@ public sealed class MappedResourceResolver<T> : IResourceResolver<T>
         Resource partial,
         CancellationToken cancellationToken)
     {
-        var entity = await _map.Load(partial.Id, cancellationToken).ConfigureAwait(false);
+        var entity = await _map.Load(_services, partial.Id, cancellationToken).ConfigureAwait(false);
         if (entity is null)
             throw new KeyNotFoundException($"Resource '{_map.Type}:{partial.Id}' was not found.");
 
