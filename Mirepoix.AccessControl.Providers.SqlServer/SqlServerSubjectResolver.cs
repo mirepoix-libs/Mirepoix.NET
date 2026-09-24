@@ -4,7 +4,7 @@ namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
 /// Resolves subjects as an <see cref="ISubjectResolver"/> via SqlServer ADO.
-/// With empty <see cref="SqlServerProviderOptions.SubjectMapping"/>: loads from <c>ac_subject*</c>.
+/// With empty subject maps: loads from <c>ac_subject*</c>.
 /// With maps: uses <see cref="SubjectMappingLookup"/> and ADO materialization of mapped tables, then unions
 /// <c>ac_subject_role</c> rows when role storage remains library-owned.
 /// Validates maps with <c>requireStorageTable: true</c> at construction when maps are present.

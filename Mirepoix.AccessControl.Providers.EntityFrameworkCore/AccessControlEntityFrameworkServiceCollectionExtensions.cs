@@ -31,6 +31,7 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
 
         services.AddAccessControlPolicyProviders(configure);
         services.AddAccessControlSubjectProviders();
+        FinalizeResourcesFromServices(services);
         return services;
     }
 
@@ -51,6 +52,7 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
 
         services.AddAccessControlPolicyProviders<TContext>(configure);
         services.AddAccessControlSubjectProviders<TContext>();
+        FinalizeResourcesFromServices(services);
         return services;
     }
 
@@ -176,6 +178,7 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
             typeof(AccessControlSchemaApplier),
             typeof(AccessControlSchemaApplier),
             () => services.AddSingleton<AccessControlSchemaApplier>());
+        AccessControlProviderFinalizer.FinalizeResources(services, options);
     }
 
     private static void EnsureAppOwnedShared<TContext>(
@@ -194,6 +197,22 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
         configure?.Invoke(options);
         options.ContextType = typeof(TContext);
         services.AddSingleton(options);
+        AccessControlProviderFinalizer.FinalizeResources(services, options);
+    }
+
+    private static void FinalizeResourcesFromServices(IServiceCollection services)
+    {
+        foreach (var descriptor in services)
+        {
+            if (descriptor.ServiceType != typeof(EntityFrameworkProviderOptions))
+                continue;
+
+            if (descriptor.ImplementationInstance is EntityFrameworkProviderOptions options)
+            {
+                AccessControlProviderFinalizer.FinalizeResources(services, options);
+                return;
+            }
+        }
     }
 
     private static void EnsureExistingOptionsCompatible(

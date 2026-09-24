@@ -8,6 +8,7 @@ namespace Mirepoix.AccessControl.Providers;
 /// not by a flag on this type.
 /// </summary>
 public sealed class EntityFrameworkProviderOptions
+    : AccessControlProviderOptions<EntityFrameworkProviderOptions>
 {
     /// <summary>
     /// Controls how long a loaded policy set stays cached. <c>null</c> caches until process recycle.
@@ -27,25 +28,4 @@ public sealed class EntityFrameworkProviderOptions
     /// (<see cref="AccessControlDbContext"/> or the app's <c>TContext</c>). Set by DI registration.
     /// </summary>
     public Type? ContextType { get; set; }
-
-    /// <summary>
-    /// Holds optional maps from app entity types to <see cref="Subject"/>.
-    /// Empty maps mean hydrate from built-in <c>ac_subject*</c> entities.
-    /// Maps without explicit role members union roles from library-owned <c>ac_subject_role</c>;
-    /// maps with role members own role storage. Storage table hints are optional (EF model preferred).
-    /// </summary>
-    public SubjectMappingOptions SubjectMapping { get; } = new();
-
-    /// <summary>
-    /// Adds a subject entity map and returns this instance for chaining.
-    /// </summary>
-    /// <typeparam name="T">CLR entity type present on the resolved <see cref="DbContext"/>.</typeparam>
-    /// <param name="configure">Fluent map configuration.</param>
-    /// <returns>This options instance.</returns>
-    public EntityFrameworkProviderOptions MapSubject<T>(Action<SubjectEntityMapBuilder<T>> configure)
-        where T : class
-    {
-        SubjectMapping.MapEntity(configure);
-        return this;
-    }
 }

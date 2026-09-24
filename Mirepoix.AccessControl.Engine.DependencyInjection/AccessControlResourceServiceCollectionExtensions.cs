@@ -46,7 +46,7 @@ public static class AccessControlResourceServiceCollectionExtensions
                 $"{typeof(TResolver).FullName} must declare a non-blank {nameof(AccessResourceTypeAttribute)}.");
         }
 
-        ThrowIfTypeAlreadyRegistered(services, attribute.Type);
+        AccessControlResourceMapRegistration.ThrowIfResourceTypeAlreadyRegistered(services, attribute.Type);
 
         var resourceType = resolverInterfaces[0].GetGenericArguments()[0];
         var registration = CreateRegistrationMethod
@@ -59,43 +59,6 @@ public static class AccessControlResourceServiceCollectionExtensions
             resolverInterfaces[0],
             serviceProvider => serviceProvider.GetRequiredService<TResolver>());
         services.AddSingleton(registration);
-        TryAddCompositeHydrator(services);
-
-        return services;
-    }
-
-    /// <summary>
-    /// Registers a scoped resolver built from a fluent domain resource map.
-    /// </summary>
-    /// <typeparam name="TResource">Mapped domain resource type.</typeparam>
-    /// <param name="services">DI collection.</param>
-    /// <param name="configure">Map configuration.</param>
-    /// <returns><paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddAccessControlResourceMap<TResource>(
-        this IServiceCollection services,
-        Action<ResourceEntityMapBuilder<TResource>> configure)
-        where TResource : class
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configure);
-
-        var builder = new ResourceEntityMapBuilder<TResource>();
-        configure(builder);
-        var map = builder.Build();
-        ThrowIfTypeAlreadyRegistered(services, map.Type);
-
-        services.AddScoped(serviceProvider => new MappedResourceResolver<TResource>(map, serviceProvider));
-        services.AddScoped<IResourceResolver<TResource>>(serviceProvider =>
-            serviceProvider.GetRequiredService<MappedResourceResolver<TResource>>());
-        services.AddSingleton(new ResourceResolverRegistration
-        {
-            Type = map.Type,
-            ResolverServiceType = typeof(MappedResourceResolver<TResource>),
-            Invoke = static (serviceProvider, partial, cancellationToken) =>
-                serviceProvider
-                    .GetRequiredService<MappedResourceResolver<TResource>>()
-                    .HydrateAsync(partial, cancellationToken),
-        });
         TryAddCompositeHydrator(services);
 
         return services;
@@ -117,18 +80,6 @@ public static class AccessControlResourceServiceCollectionExtensions
                     .GetRequiredService<TResolver>()
                     .HydrateAsync(partial, cancellationToken)
         };
-
-    private static void ThrowIfTypeAlreadyRegistered(IServiceCollection services, string type)
-    {
-        if (services.Any(descriptor =>
-                descriptor.ServiceType == typeof(ResourceResolverRegistration) &&
-                descriptor.ImplementationInstance is ResourceResolverRegistration registration &&
-                string.Equals(registration.Type, type, StringComparison.Ordinal)))
-        {
-            throw new InvalidOperationException(
-                $"Resource type '{type}' has more than one resolver.");
-        }
-    }
 
     private static void TryAddCompositeHydrator(IServiceCollection services) =>
         services.TryAddScoped<IResourceHydrator>(serviceProvider =>

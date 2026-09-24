@@ -29,6 +29,7 @@ public static class AccessControlSqlServerServiceCollectionExtensions
 
         services.AddAccessControlPolicyProviders(options);
         services.AddAccessControlSubjectProviders();
+        AccessControlProviderFinalizer.FinalizeResources(services, options);
         return services;
     }
 
@@ -154,6 +155,7 @@ public static class AccessControlSqlServerServiceCollectionExtensions
             typeof(SqlServerSchemaMigrator),
             typeof(SqlServerSchemaMigrator),
             () => services.AddSingleton<SqlServerSchemaMigrator>());
+        AccessControlProviderFinalizer.FinalizeResources(services, options);
     }
 
     private static void TryAddCompositeHydrator(IServiceCollection services)

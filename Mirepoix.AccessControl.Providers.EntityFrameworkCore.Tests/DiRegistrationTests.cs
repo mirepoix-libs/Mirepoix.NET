@@ -113,6 +113,28 @@ public class DiRegistrationTests
     }
 
     [Fact]
+    public async Task AddAccessControlProviders_MapResource_RegistersHydrator()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<AppOwnedDbContext>(db => db.UseInMemoryDatabase("map-resource"));
+        services.AddAccessControlProviders<AppOwnedDbContext>(o =>
+        {
+            o.MapResource<Doc>(m => m
+                .Type("doc")
+                .Id(x => x.Id)
+                .Attribute(x => x.Status, "status")
+                .Load((id, _) => Task.FromResult<Doc?>(new Doc { Id = id, Status = "ok" })));
+        });
+
+        await using var sp = services.BuildServiceProvider();
+        await using var scope = sp.CreateAsyncScope();
+        var resource = await scope.ServiceProvider.GetRequiredService<IResourceHydrator>()
+            .HydrateAsync(new Resource("doc", "1", new Dictionary<string, object?>()), CancellationToken.None);
+
+        Assert.Equal("ok", resource.Attributes["status"]);
+    }
+
+    [Fact]
     public async Task Composite_hydrator_uses_app_registered_resource_hydrator()
     {
         var services = new ServiceCollection();
@@ -182,6 +204,13 @@ public class DiRegistrationTests
             {
                 Attributes = new Dictionary<string, object?> { ["scopeId"] = _probe.Id },
             });
+    }
+
+    private sealed class Doc
+    {
+        public string Id { get; set; } = "";
+
+        public string Status { get; set; } = "";
     }
 
     private sealed class TestResourceHydrator : IResourceHydrator
