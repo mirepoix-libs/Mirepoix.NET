@@ -45,6 +45,20 @@ public sealed class ClientServerIntegrationTests
                 CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Client_RoundTrips_Resource_Through_Server_Hydrator()
+    {
+        await using var server = await StartServerAsync();
+        using var http = server.GetTestClient();
+        var hydrator = new HttpResourceHydrator(http);
+
+        var result = await hydrator.HydrateAsync(
+            new Resource("document", "1", new Dictionary<string, object?>()),
+            CancellationToken.None);
+
+        Assert.Equal("alice", result.Attributes["ownerId"]);
+    }
+
     private static async Task<WebApplication> StartServerAsync()
     {
         var builder = WebApplication.CreateBuilder();
@@ -57,10 +71,24 @@ public sealed class ClientServerIntegrationTests
                     new HashSet<string> { "editor" },
                     new Dictionary<string, object?> { ["dept"] = "eng" }),
             }));
-        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddSubject());
+        builder.Services.AddSingleton<IResourceHydrator, TestResourceHydrator>();
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+            options.AddSubject().AddResource());
         var app = builder.Build();
         app.MapAccessControlProviders();
         await app.StartAsync();
         return app;
+    }
+
+    private sealed class TestResourceHydrator : IResourceHydrator
+    {
+        public Task<Resource> HydrateAsync(
+            Resource partial,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                new Resource(
+                    partial.Type,
+                    partial.Id,
+                    new Dictionary<string, object?> { ["ownerId"] = "alice" }));
     }
 }

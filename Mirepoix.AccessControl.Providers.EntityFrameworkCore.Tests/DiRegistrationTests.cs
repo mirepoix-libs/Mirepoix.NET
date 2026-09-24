@@ -33,7 +33,7 @@ public class DiRegistrationTests
         Assert.NotNull(sp.GetRequiredService<AccessControlDbContext>());
         Assert.IsType<EntityFrameworkPolicySource>(sp.GetRequiredService<IPolicySource>());
         Assert.IsType<EntityFrameworkSubjectResolver>(sp.GetRequiredService<ISubjectResolver>());
-        Assert.IsType<EntityFrameworkResourceResolver>(sp.GetRequiredService<IResourceResolver>());
+        Assert.Null(sp.GetService<IResourceHydrator>());
         Assert.IsType<CompositeBundleHydrator>(sp.GetRequiredService<IBundleHydrator>());
         Assert.NotNull(sp.GetRequiredService<AccessControlSchemaApplier>());
         Assert.Equal(TimeSpan.FromMinutes(1), sp.GetRequiredService<EntityFrameworkProviderOptions>().PolicyCacheTtl);
@@ -46,7 +46,6 @@ public class DiRegistrationTests
         services.AddAccessControlPolicyProviders(o =>
             o.ConfigureDb = db => db.UseInMemoryDatabase("slices"));
         services.AddAccessControlSubjectProviders();
-        services.AddAccessControlResourceProviders();
 
         Assert.Equal(1, services.Count(d => d.ServiceType == typeof(EntityFrameworkProviderOptions)));
         Assert.Equal(1, services.Count(d => d.ServiceType == typeof(AccessControlSchemaApplier)));
@@ -55,7 +54,7 @@ public class DiRegistrationTests
         using var sp = services.BuildServiceProvider();
         Assert.IsType<EntityFrameworkPolicySource>(sp.GetRequiredService<IPolicySource>());
         Assert.IsType<EntityFrameworkSubjectResolver>(sp.GetRequiredService<ISubjectResolver>());
-        Assert.IsType<EntityFrameworkResourceResolver>(sp.GetRequiredService<IResourceResolver>());
+        Assert.Null(sp.GetService<IResourceHydrator>());
     }
 
     [Fact]
@@ -111,5 +110,89 @@ public class DiRegistrationTests
                 o.ConfigureDb = db => db.UseInMemoryDatabase("twice")));
 
         Assert.Contains("already registered", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Composite_hydrator_uses_app_registered_resource_hydrator()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IResourceHydrator, TestResourceHydrator>();
+        services.AddAccessControlPolicyProviders(o =>
+            o.ConfigureDb = db => db.UseInMemoryDatabase("custom-resource"));
+
+        using var sp = services.BuildServiceProvider();
+        var bundle = await sp.GetRequiredService<IBundleHydrator>().HydrateAsync(
+            new AuthorizationRequest(
+                new Subject("alice", new HashSet<string>(), new Dictionary<string, object?>()),
+                new Resource("doc", "1", new Dictionary<string, object?>()),
+                Operation.Parse("doc:read"),
+                new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>())),
+            CancellationToken.None);
+
+        Assert.Equal("domain", bundle.Resource.Attributes["source"]);
+    }
+
+    [Fact]
+    public async Task Composite_hydrator_resolves_scoped_resource_hydrator_per_call()
+    {
+        var services = new ServiceCollection();
+        services.AddAccessControlPolicyProviders(o =>
+            o.ConfigureDb = db => db.UseInMemoryDatabase(Guid.NewGuid().ToString("N")));
+        services.AddScoped<ScopeProbe>();
+        services.AddAccessControlResourceResolver<ScopedProbeResolver>();
+
+        await using var root = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+        });
+
+        var rootResolve = Assert.Throws<InvalidOperationException>(
+            () => root.GetRequiredService<IResourceHydrator>());
+        Assert.Contains("scoped", rootResolve.Message, StringComparison.OrdinalIgnoreCase);
+
+        var hydrator = root.GetRequiredService<IBundleHydrator>();
+        var request = new AuthorizationRequest(
+            new Subject("alice", new HashSet<string>(), new Dictionary<string, object?>()),
+            new Resource("document", "1", new Dictionary<string, object?>()),
+            Operation.Parse("document:read"),
+            new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
+
+        var first = await hydrator.HydrateAsync(request, CancellationToken.None);
+        var second = await hydrator.HydrateAsync(request, CancellationToken.None);
+
+        Assert.NotEqual(first.Resource.Attributes["scopeId"], second.Resource.Attributes["scopeId"]);
+    }
+
+    private sealed class ScopeProbe
+    {
+        public string Id { get; } = Guid.NewGuid().ToString("N");
+    }
+
+    private sealed class ProbeDocument;
+
+    [AccessResourceType("document")]
+    private sealed class ScopedProbeResolver : IResourceResolver<ProbeDocument>
+    {
+        private readonly ScopeProbe _probe;
+
+        public ScopedProbeResolver(ScopeProbe probe) => _probe = probe;
+
+        public Task<Resource> HydrateAsync(Resource partial, CancellationToken cancellationToken) =>
+            Task.FromResult(partial with
+            {
+                Attributes = new Dictionary<string, object?> { ["scopeId"] = _probe.Id },
+            });
+    }
+
+    private sealed class TestResourceHydrator : IResourceHydrator
+    {
+        public Task<Resource> HydrateAsync(
+            Resource partial,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                new Resource(
+                    partial.Type,
+                    partial.Id,
+                    new Dictionary<string, object?> { ["source"] = "domain" }));
     }
 }

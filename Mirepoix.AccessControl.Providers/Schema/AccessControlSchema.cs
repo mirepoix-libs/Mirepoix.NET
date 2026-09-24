@@ -7,7 +7,7 @@ namespace Mirepoix.AccessControl.Providers.Schema;
 public static class AccessControlSchema
 {
     /// <summary>Names the logical schema version this contract describes.</summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     /// <summary>
     /// Names the singleton row id for <see cref="PolicySetTable"/>. Providers store one active policy set at this id.
@@ -25,9 +25,6 @@ public static class AccessControlSchema
 
     /// <summary>Names the subject attribute table (<c>value_json</c>).</summary>
     public const string SubjectAttributeTable = "ac_subject_attribute";
-
-    /// <summary>Names the resource attribute table keyed by type + id (<c>value_json</c>).</summary>
-    public const string ResourceAttributeTable = "ac_resource_attribute";
 
     /// <summary>Names the role catalog table.</summary>
     public const string RoleTable = "ac_role";
@@ -74,10 +71,5 @@ public static class AccessControlSchema
     /// <summary>Names the attribute value JSON column.</summary>
     public const string ColValueJson = "value_json";
 
-    /// <summary>Names the resource type column on <see cref="ResourceAttributeTable"/>.</summary>
-    public const string ColResourceType = "resource_type";
-
-    /// <summary>Names the resource id column on <see cref="ResourceAttributeTable"/>.</summary>
-    public const string ColResourceId = "resource_id";
 }
 

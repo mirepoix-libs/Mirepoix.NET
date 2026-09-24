@@ -8,15 +8,16 @@ namespace Mirepoix.AccessControl.Providers;
 /// Two modes by overload: package-driven (registers <see cref="AccessControlDbContext"/> +
 /// <see cref="AccessControlSchemaApplier"/>, requires <see cref="EntityFrameworkProviderOptions.ConfigureDb"/>)
 /// vs app-owned (generic <c>TContext</c>; app registers the context and owns migrations).
-/// Prefer slice helpers when mixing sources; unified helpers call all three slices.
+/// Prefer slice helpers when mixing sources; unified helpers register policy and subject slices.
 /// Seam guards prevent silent replacement. Registers <see cref="IBundleHydrator"/> once as
 /// <see cref="CompositeBundleHydrator"/> with <see cref="PassThroughContextResolver"/> when absent.
+/// The resource slot resolves <see cref="IResourceHydrator"/> from a new scope on each call.
 /// Do not mix package-driven and app-owned registration against the same options/context.
 /// </summary>
 public static class AccessControlEntityFrameworkServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers package-driven policies, subjects, and resources (shared DbContext / schema applier).
+    /// Registers package-driven policies and subjects (shared DbContext / schema applier).
     /// </summary>
     /// <param name="services">DI collection.</param>
     /// <param name="configure">Must set <see cref="EntityFrameworkProviderOptions.ConfigureDb"/> on first registration.</param>
@@ -30,12 +31,11 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
 
         services.AddAccessControlPolicyProviders(configure);
         services.AddAccessControlSubjectProviders();
-        services.AddAccessControlResourceProviders();
         return services;
     }
 
     /// <summary>
-    /// Registers app-owned policies, subjects, and resources against <typeparamref name="TContext"/>.
+    /// Registers app-owned policies and subjects against <typeparamref name="TContext"/>.
     /// Does not register <see cref="AccessControlDbContext"/> or <see cref="AccessControlSchemaApplier"/>.
     /// </summary>
     /// <typeparam name="TContext">App <see cref="DbContext"/> that includes the access-control model.</typeparam>
@@ -51,7 +51,6 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
 
         services.AddAccessControlPolicyProviders<TContext>(configure);
         services.AddAccessControlSubjectProviders<TContext>();
-        services.AddAccessControlResourceProviders<TContext>();
         return services;
     }
 
@@ -100,28 +99,6 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers a package-driven <see cref="EntityFrameworkResourceResolver"/>.
-    /// </summary>
-    /// <param name="services">DI collection.</param>
-    /// <param name="configure">Optional; <see cref="EntityFrameworkProviderOptions.ConfigureDb"/> required if options not yet registered.</param>
-    /// <returns><paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddAccessControlResourceProviders(
-        this IServiceCollection services,
-        Action<EntityFrameworkProviderOptions>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        EnsurePackageDrivenShared(services, configure, nameof(AddAccessControlResourceProviders));
-        AccessControlServiceCollectionGuard.EnsureCanRegisterSeam(
-            services,
-            nameof(AddAccessControlResourceProviders),
-            typeof(IResourceResolver),
-            typeof(EntityFrameworkResourceResolver));
-        services.AddSingleton<IResourceResolver, EntityFrameworkResourceResolver>();
-        TryAddCompositeHydrator(services);
-        return services;
-    }
-
-    /// <summary>
     /// Registers an app-owned <see cref="EntityFrameworkPolicySource"/> against <typeparamref name="TContext"/>.
     /// </summary>
     /// <typeparam name="TContext">App context type.</typeparam>
@@ -165,30 +142,6 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
             typeof(ISubjectResolver),
             typeof(EntityFrameworkSubjectResolver));
         services.AddSingleton<ISubjectResolver, EntityFrameworkSubjectResolver>();
-        TryAddCompositeHydrator(services);
-        return services;
-    }
-
-    /// <summary>
-    /// Registers an app-owned <see cref="EntityFrameworkResourceResolver"/> against <typeparamref name="TContext"/>.
-    /// </summary>
-    /// <typeparam name="TContext">App context type.</typeparam>
-    /// <param name="services">DI collection.</param>
-    /// <param name="configure">Optional options.</param>
-    /// <returns><paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddAccessControlResourceProviders<TContext>(
-        this IServiceCollection services,
-        Action<EntityFrameworkProviderOptions>? configure = null)
-        where TContext : DbContext
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        EnsureAppOwnedShared<TContext>(services, configure, nameof(AddAccessControlResourceProviders));
-        AccessControlServiceCollectionGuard.EnsureCanRegisterSeam(
-            services,
-            nameof(AddAccessControlResourceProviders),
-            typeof(IResourceResolver),
-            typeof(EntityFrameworkResourceResolver));
-        services.AddSingleton<IResourceResolver, EntityFrameworkResourceResolver>();
         TryAddCompositeHydrator(services);
         return services;
     }
@@ -278,7 +231,7 @@ public static class AccessControlEntityFrameworkServiceCollectionExtensions
             () => services.AddSingleton<IBundleHydrator>(sp =>
                 new CompositeBundleHydrator(
                     sp.GetService<ISubjectResolver>(),
-                    sp.GetService<IResourceResolver>(),
+                    new ScopeFactoryResourceHydrator(sp.GetRequiredService<IServiceScopeFactory>()),
                     new PassThroughContextResolver())));
     }
 }

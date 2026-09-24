@@ -41,6 +41,10 @@ public static class AccessControlSchemaDialectMap
     public const string SqlServerSubjectsResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.002b_subjects.sql";
 
+    /// <summary>Names the manifest resource that removes legacy SqlServer resource attributes.</summary>
+    public const string SqlServerDropResourceAttributeResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.003_drop_resource_attribute.sql";
+
     /// <summary>Names the manifest resource for the PostgreSQL core schema script.</summary>
     public const string PostgreSqlCoreResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001_init.sql";
@@ -56,6 +60,10 @@ public static class AccessControlSchemaDialectMap
     /// <summary>Names the manifest resource for the PostgreSQL native-subject schema script.</summary>
     public const string PostgreSqlSubjectsResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.002b_subjects.sql";
+
+    /// <summary>Names the manifest resource that removes legacy PostgreSQL resource attributes.</summary>
+    public const string PostgreSqlDropResourceAttributeResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.003_drop_resource_attribute.sql";
 
     /// <summary>Names the SqlServer core resource for callers using the original single-script API.</summary>
     public const string SqlServerInitResource = SqlServerCoreResource;
@@ -100,8 +108,8 @@ public static class AccessControlSchemaDialectMap
         };
 
     /// <summary>
-    /// Lists core, subject-role, management, then native-subject resource names for a dialect in schema-application
-    /// order. Callers omit subject resources according to the resolved storage layout.
+    /// Lists core, subject-role, management, native-subject, then legacy resource-drop names for a dialect in
+    /// schema-application order. Callers omit subject resources according to the resolved storage layout.
     /// </summary>
     /// <param name="dialect">Target dialect.</param>
     /// <returns>Ordered embedded resource names.</returns>
@@ -115,6 +123,7 @@ public static class AccessControlSchemaDialectMap
                     SqlServerSubjectRolesResource,
                     SqlServerManagementResource,
                     SqlServerSubjectsResource,
+                    SqlServerDropResourceAttributeResource,
                 ],
             AccessControlSchemaDialect.PostgreSql =>
                 [
@@ -122,6 +131,7 @@ public static class AccessControlSchemaDialectMap
                     PostgreSqlSubjectRolesResource,
                     PostgreSqlManagementResource,
                     PostgreSqlSubjectsResource,
+                    PostgreSqlDropResourceAttributeResource,
                 ],
             _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, null),
         };
@@ -142,8 +152,10 @@ public static class AccessControlSchemaDialectMap
         return layout switch
         {
             SubjectStorageLayout.Native => resources,
-            SubjectStorageLayout.MappedLibraryRoles => resources.Take(3).ToArray(),
-            SubjectStorageLayout.MappedAppOwnedRoles => [resources[0], resources[2]],
+            SubjectStorageLayout.MappedLibraryRoles =>
+                [resources[0], resources[1], resources[2], resources[4]],
+            SubjectStorageLayout.MappedAppOwnedRoles =>
+                [resources[0], resources[2], resources[4]],
             _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, null),
         };
     }

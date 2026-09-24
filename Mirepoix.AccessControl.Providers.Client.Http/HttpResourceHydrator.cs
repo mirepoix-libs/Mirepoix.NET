@@ -6,14 +6,14 @@ using Mirepoix.AccessControl.Providers;
 namespace Mirepoix.AccessControl.Providers.Client.Http;
 
 /// <summary>
-/// Remote <see cref="IResourceResolver"/> that POSTs a partial resource to a PIP HTTP endpoint.
+/// Remote <see cref="IResourceHydrator"/> that POSTs a partial resource to a PIP HTTP endpoint.
 /// </summary>
-public sealed class HttpResourceResolver : IResourceResolver
+public sealed class HttpResourceHydrator : IResourceHydrator
 {
     private readonly HttpClient _http;
 
-    /// <summary>Creates a resolver that uses <paramref name="http"/> (typically with <see cref="HttpClient.BaseAddress"/> set).</summary>
-    public HttpResourceResolver(HttpClient http)
+    /// <summary>Creates a hydrator that uses <paramref name="http"/> (typically with <see cref="HttpClient.BaseAddress"/> set).</summary>
+    public HttpResourceHydrator(HttpClient http)
     {
         ArgumentNullException.ThrowIfNull(http);
         _http = http;

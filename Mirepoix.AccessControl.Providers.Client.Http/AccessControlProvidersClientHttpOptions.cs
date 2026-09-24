@@ -24,7 +24,7 @@ public sealed class AccessControlProvidersClientHttpOptions
         return this;
     }
 
-    /// <summary>Registers <see cref="HttpResourceResolver"/> as <see cref="IResourceResolver"/>.</summary>
+    /// <summary>Registers <see cref="HttpResourceHydrator"/> as <see cref="IResourceHydrator"/>.</summary>
     public AccessControlProvidersClientHttpOptions AddResource()
     {
         ResourceEnabled = true;

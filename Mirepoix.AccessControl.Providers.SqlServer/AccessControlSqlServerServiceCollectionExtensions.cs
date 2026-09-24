@@ -3,17 +3,18 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
-/// Registers SqlServer read/hydrate adapters (<see cref="IPolicySource"/>, <see cref="ISubjectResolver"/>,
-/// <see cref="IResourceResolver"/>). Prefer slice helpers when mixing sources; the unified helper calls all three slices.
+/// Registers SqlServer read/hydrate adapters (<see cref="IPolicySource"/> and <see cref="ISubjectResolver"/>).
+/// Prefer slice helpers when mixing sources; the unified helper calls both slices.
 /// First successful slice registration installs shared <see cref="SqlServerProviderOptions"/> and
 /// <see cref="SqlServerSchemaMigrator"/>. Seam guards prevent silent replacement by another provider package.
 /// Also registers <see cref="IBundleHydrator"/> once as a <see cref="CompositeBundleHydrator"/> with
 /// <see cref="PassThroughContextResolver"/> when absent.
+/// The resource slot resolves <see cref="IResourceHydrator"/> from a new scope on each call.
 /// </summary>
 public static class AccessControlSqlServerServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers policy + subject + resource SqlServer providers using <paramref name="options"/>.
+    /// Registers policy and subject SqlServer providers using <paramref name="options"/>.
     /// </summary>
     /// <param name="services">DI collection.</param>
     /// <param name="options">Options including a non-empty connection string.</param>
@@ -28,12 +29,11 @@ public static class AccessControlSqlServerServiceCollectionExtensions
 
         services.AddAccessControlPolicyProviders(options);
         services.AddAccessControlSubjectProviders();
-        services.AddAccessControlResourceProviders();
         return services;
     }
 
     /// <summary>
-    /// Registers all three SqlServer slices after building options via <paramref name="configure"/>.
+    /// Registers both SqlServer slices after building options via <paramref name="configure"/>.
     /// </summary>
     /// <param name="services">DI collection.</param>
     /// <param name="configure">Must set a non-empty connection string.</param>
@@ -132,44 +132,6 @@ public static class AccessControlSqlServerServiceCollectionExtensions
         return services.AddAccessControlSubjectProviders(options);
     }
 
-    /// <summary>
-    /// Registers <see cref="SqlServerResourceResolver"/> as <see cref="IResourceResolver"/>.
-    /// </summary>
-    /// <param name="services">DI collection.</param>
-    /// <param name="options">Optional; required with connection string on first SqlServer registration.</param>
-    /// <returns><paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddAccessControlResourceProviders(
-        this IServiceCollection services,
-        SqlServerProviderOptions? options = null)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        EnsureShared(services, options, nameof(AddAccessControlResourceProviders));
-        AccessControlServiceCollectionGuard.EnsureCanRegisterSeam(
-            services,
-            nameof(AddAccessControlResourceProviders),
-            typeof(IResourceResolver),
-            typeof(SqlServerResourceResolver));
-        services.AddSingleton<IResourceResolver, SqlServerResourceResolver>();
-        TryAddCompositeHydrator(services);
-        return services;
-    }
-
-    /// <summary>
-    /// Registers the resource slice with options built from <paramref name="configure"/>.
-    /// </summary>
-    /// <param name="services">DI collection.</param>
-    /// <param name="configure">Options configuration.</param>
-    /// <returns><paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddAccessControlResourceProviders(
-        this IServiceCollection services,
-        Action<SqlServerProviderOptions> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-        var options = new SqlServerProviderOptions();
-        configure(options);
-        return services.AddAccessControlResourceProviders(options);
-    }
-
     private static void EnsureShared(
         IServiceCollection services,
         SqlServerProviderOptions? options,
@@ -204,7 +166,7 @@ public static class AccessControlSqlServerServiceCollectionExtensions
             () => services.AddSingleton<IBundleHydrator>(sp =>
                 new CompositeBundleHydrator(
                     sp.GetService<ISubjectResolver>(),
-                    sp.GetService<IResourceResolver>(),
+                    new ScopeFactoryResourceHydrator(sp.GetRequiredService<IServiceScopeFactory>()),
                     new PassThroughContextResolver())));
     }
 }

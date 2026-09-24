@@ -14,6 +14,7 @@ public static class AccessControlProvidersClientHttpExtensions
 
     /// <summary>
     /// Registers enabled Http*Resolver types and TryAdds a <see cref="CompositeBundleHydrator"/>.
+    /// The resource slot resolves <see cref="IResourceHydrator"/> from a new scope on each call.
     /// </summary>
     /// <param name="services">Service collection.</param>
     /// <param name="configure">Required; must set <see cref="AccessControlProvidersClientHttpOptions.BaseAddress"/> and at least one slice.</param>
@@ -59,11 +60,11 @@ public static class AccessControlProvidersClientHttpExtensions
 
         if (options.ResourceEnabled)
         {
-            services.RemoveAll<IResourceResolver>();
-            services.AddSingleton<IResourceResolver>(serviceProvider =>
+            services.RemoveAll<IResourceHydrator>();
+            services.AddSingleton<IResourceHydrator>(serviceProvider =>
             {
                 var factory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-                return new HttpResourceResolver(factory.CreateClient(HttpClientName));
+                return new HttpResourceHydrator(factory.CreateClient(HttpClientName));
             });
         }
 
@@ -80,7 +81,7 @@ public static class AccessControlProvidersClientHttpExtensions
         services.TryAddSingleton<IBundleHydrator>(serviceProvider =>
             new CompositeBundleHydrator(
                 serviceProvider.GetService<ISubjectResolver>(),
-                serviceProvider.GetService<IResourceResolver>(),
+                new ScopeFactoryResourceHydrator(serviceProvider.GetRequiredService<IServiceScopeFactory>()),
                 serviceProvider.GetService<IContextResolver>() ?? new PassThroughContextResolver()));
 
         return services;

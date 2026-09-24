@@ -12,7 +12,7 @@ namespace Mirepoix.AccessControl.Providers;
 public static class AccessControlModelBuilderExtensions
 {
     /// <summary>
-    /// Configures the always-owned policy, resource, role-catalog, and separation-of-duties entities,
+    /// Configures the always-owned policy, role-catalog, and separation-of-duties entities,
     /// then adds only the subject entities owned by <paramref name="layout"/>.
     /// Subject role rows remain standalone and never have a foreign key to subject headers.
     /// </summary>
@@ -34,16 +34,6 @@ public static class AccessControlModelBuilderExtensions
             e.Property(x => x.Version).HasColumnName(AccessControlSchema.ColVersion).HasMaxLength(128).IsRequired();
             e.Property(x => x.PayloadJson).HasColumnName(AccessControlSchema.ColPayloadJson).IsRequired();
             e.Property(x => x.UpdatedUtc).HasColumnName(AccessControlSchema.ColUpdatedUtc).IsRequired();
-        });
-
-        modelBuilder.Entity<ResourceAttributeEntity>(e =>
-        {
-            e.ToTable(AccessControlSchema.ResourceAttributeTable);
-            e.HasKey(x => new { x.ResourceType, x.ResourceId, x.Name });
-            e.Property(x => x.ResourceType).HasColumnName(AccessControlSchema.ColResourceType).HasMaxLength(256);
-            e.Property(x => x.ResourceId).HasColumnName(AccessControlSchema.ColResourceId).HasMaxLength(256);
-            e.Property(x => x.Name).HasColumnName(AccessControlSchema.ColName).HasMaxLength(256);
-            e.Property(x => x.ValueJson).HasColumnName(AccessControlSchema.ColValueJson);
         });
 
         modelBuilder.Entity<RoleEntity>(e =>

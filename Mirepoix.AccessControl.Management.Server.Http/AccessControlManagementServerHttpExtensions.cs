@@ -46,11 +46,6 @@ public static class AccessControlManagementServerHttpExtensions
             MapSubjects(group, options.RoutePrefix);
         }
 
-        if (options.ResourcesEnabled)
-        {
-            MapResources(group);
-        }
-
         if (options.RolesEnabled)
         {
             MapRoles(group, options.RoutePrefix);
@@ -169,75 +164,6 @@ public static class AccessControlManagementServerHttpExtensions
             Results.Ok(await store.GetRolesAsync(id, cancellationToken)));
     }
 
-    private static void MapResources(RouteGroupBuilder group)
-    {
-        group.MapPut("/resources/{type}/{id}/attributes/{key}", async (
-            string type,
-            string id,
-            string key,
-            JsonElement value,
-            IResourceStore store,
-            CancellationToken cancellationToken) =>
-        {
-            await store.SetAttributeAsync(type, id, key, ToClrValue(value), cancellationToken);
-            return Results.NoContent();
-        });
-
-        group.MapDelete("/resources/{type}/{id}/attributes/{key}", async (
-            string type,
-            string id,
-            string key,
-            IResourceStore store,
-            CancellationToken cancellationToken) =>
-        {
-            await store.ClearAttributeAsync(type, id, key, cancellationToken);
-            return Results.NoContent();
-        });
-
-        group.MapGet("/resources/{type}/{id}/attributes", async (
-            string type,
-            string id,
-            IResourceStore store,
-            CancellationToken cancellationToken) =>
-            Results.Ok(await store.GetAttributesAsync(type, id, cancellationToken)));
-
-        group.MapPut("/resources/{type}/{id}/owner", async (
-            string type,
-            string id,
-            JsonElement ownerSubjectId,
-            IResourceStore store,
-            CancellationToken cancellationToken) =>
-        {
-            if (ownerSubjectId.ValueKind != JsonValueKind.String)
-            {
-                return Results.Problem("Owner body must be a JSON string.", statusCode: StatusCodes.Status400BadRequest);
-            }
-
-            await store.SetOwnerAsync(type, id, ownerSubjectId.GetString()!, cancellationToken);
-            return Results.NoContent();
-        });
-
-        group.MapDelete("/resources/{type}/{id}/owner", async (
-            string type,
-            string id,
-            IResourceStore store,
-            CancellationToken cancellationToken) =>
-        {
-            await store.ClearOwnerAsync(type, id, cancellationToken);
-            return Results.NoContent();
-        });
-
-        group.MapGet("/resources/{type}/{id}/owner", async (
-            string type,
-            string id,
-            IResourceStore store,
-            CancellationToken cancellationToken) =>
-        {
-            var owner = await store.GetOwnerAsync(type, id, cancellationToken);
-            return owner is null ? Results.NotFound() : Results.Ok(owner);
-        });
-    }
-
     private static void MapRoles(RouteGroupBuilder group, string routePrefix)
     {
         group.MapGet("/roles", async (IRoleCatalog catalog, CancellationToken cancellationToken) =>
@@ -352,12 +278,6 @@ public static class AccessControlManagementServerHttpExtensions
         {
             throw new InvalidOperationException(
                 "Subjects management HTTP slice requires ISubjectStore. Call AddAccessControlManagement for native EF storage or register your own ISubjectStore.");
-        }
-
-        if (options.ResourcesEnabled && !serviceProbe.IsService(typeof(IResourceStore)))
-        {
-            throw new InvalidOperationException(
-                "Resources management HTTP slice requires IResourceStore. Call AddAccessControlManagement for native EF storage or register your own IResourceStore.");
         }
 
         if (options.RolesEnabled && !serviceProbe.IsService(typeof(IRoleCatalog)))

@@ -91,12 +91,18 @@ public sealed class AccessControlBuilder
     /// Omitted resolvers become no-ops inside the composite.
     /// </summary>
     /// <param name="subject">Optional subject resolver.</param>
-    /// <param name="resource">Optional resource resolver.</param>
+    /// <param name="resource">Optional resource hydrator.</param>
     /// <param name="context">Optional context resolver.</param>
     /// <returns>This builder for chaining.</returns>
+    /// <remarks>
+    /// The caller owns the lifetime of any instance passed here. Do not pass a scoped
+    /// instance. This method registers the composite as a singleton and would capture
+    /// that instance for the process lifetime. Register the hydrator in DI and use
+    /// composite wiring so each hydrate call resolves it from its own scope.
+    /// </remarks>
     public AccessControlBuilder UseCompositeHydrator(
         ISubjectResolver? subject = null,
-        IResourceResolver? resource = null,
+        IResourceHydrator? resource = null,
         IContextResolver? context = null)
     {
         return UseHydrator(new CompositeBundleHydrator(subject, resource, context));
@@ -142,8 +148,9 @@ public sealed class AccessControlBuilder
     /// </exception>
     /// <remarks>
     /// Defaults when absent: <see cref="DefaultClaimsPrincipalMapper"/>,
-    /// empty <see cref="CompositeBundleHydrator"/>, <see cref="DenyOverridesStrategy"/>,
-    /// and policy name <see cref="AccessControlOptions.PolicyName"/>.
+    /// a <see cref="CompositeBundleHydrator"/> that resolves subject and context from DI
+    /// and resolves <see cref="IResourceHydrator"/> from a new scope on each call,
+    /// <see cref="DenyOverridesStrategy"/>, and policy name <see cref="AccessControlOptions.PolicyName"/>.
     /// </remarks>
     internal void Complete()
     {
@@ -157,7 +164,11 @@ public sealed class AccessControlBuilder
         }
 
         _services.TryAddSingleton<IClaimsPrincipalMapper, DefaultClaimsPrincipalMapper>();
-        _services.TryAddSingleton<IBundleHydrator>(_ => new CompositeBundleHydrator());
+        _services.TryAddSingleton<IBundleHydrator>(sp =>
+            new CompositeBundleHydrator(
+                sp.GetService<ISubjectResolver>(),
+                new ScopeFactoryResourceHydrator(sp.GetRequiredService<IServiceScopeFactory>()),
+                sp.GetService<IContextResolver>()));
         _services.TryAddSingleton<ICombinationStrategy, DenyOverridesStrategy>();
 
         _services.TryAddSingleton<IAccessChecker>(sp =>

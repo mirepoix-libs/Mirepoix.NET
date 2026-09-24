@@ -62,35 +62,54 @@ public class SubjectStorageLayoutResolverTests
     }
 }
 
-public class SchemaV2Tests
+public class SchemaV3Tests
 {
     [Fact]
-    public void Schema_contract_reports_version_two()
+    public void Schema_contract_reports_version_three()
     {
-        Assert.Equal(2, AccessControlSchema.SchemaVersion);
+        Assert.Equal(3, AccessControlSchema.SchemaVersion);
     }
 
     [Theory]
     [InlineData(AccessControlSchemaDialect.SqlServer)]
     [InlineData(AccessControlSchemaDialect.PostgreSql)]
-    public void Ordered_schema_resources_load_core_roles_management_and_native_subject_scripts(
+    public void Ordered_schema_resources_include_resource_attribute_drop_last(
         AccessControlSchemaDialect dialect)
     {
         var resourceNames = AccessControlSchemaDialectMap.ResourceNames(dialect);
         var scripts = AccessControlSchemaScripts.Load(dialect);
 
-        Assert.Equal(4, resourceNames.Count);
-        Assert.Equal(4, scripts.Count);
+        Assert.Equal(5, resourceNames.Count);
+        Assert.Equal(5, scripts.Count);
         Assert.EndsWith("001_init.sql", resourceNames[0], StringComparison.Ordinal);
         Assert.EndsWith("001b_subject_roles.sql", resourceNames[1], StringComparison.Ordinal);
         Assert.EndsWith("002_management.sql", resourceNames[2], StringComparison.Ordinal);
         Assert.EndsWith("002b_subjects.sql", resourceNames[3], StringComparison.Ordinal);
+        Assert.EndsWith("003_drop_resource_attribute.sql", resourceNames[4], StringComparison.Ordinal);
         Assert.All(scripts, script => Assert.False(string.IsNullOrWhiteSpace(script)));
         Assert.Contains(AccessControlSchema.PolicySetTable, scripts[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("ac_resource_attribute", scripts[0], StringComparison.Ordinal);
         Assert.Contains(AccessControlSchema.SubjectRoleTable, scripts[1], StringComparison.Ordinal);
         Assert.Contains(AccessControlSchema.RoleTable, scripts[2], StringComparison.Ordinal);
         Assert.Contains(AccessControlSchema.SodConstraintTable, scripts[2], StringComparison.Ordinal);
         Assert.Contains(AccessControlSchema.SubjectTable, scripts[3], StringComparison.Ordinal);
         Assert.Contains(AccessControlSchema.SubjectAttributeTable, scripts[3], StringComparison.Ordinal);
+        Assert.Contains("ac_resource_attribute", scripts[4], StringComparison.Ordinal);
+        Assert.Contains("DROP", scripts[4], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(AccessControlSchemaDialect.SqlServer)]
+    [InlineData(AccessControlSchemaDialect.PostgreSql)]
+    public void Every_layout_includes_resource_attribute_drop(
+        AccessControlSchemaDialect dialect)
+    {
+        foreach (var layout in Enum.GetValues<SubjectStorageLayout>())
+        {
+            Assert.EndsWith(
+                "003_drop_resource_attribute.sql",
+                AccessControlSchemaDialectMap.ResourceNames(dialect, layout)[^1],
+                StringComparison.Ordinal);
+        }
     }
 }

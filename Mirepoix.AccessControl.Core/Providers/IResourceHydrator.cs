@@ -1,16 +1,14 @@
 namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
-/// Hydrates one domain resource kind into a bundle <see cref="Resource"/>.
-/// <typeparamref name="TResource"/> is the app's domain type.
+/// Type-agnostic resource hydrate port for bundle hydration, remote PIP, and composite dispatch.
 /// </summary>
-/// <typeparam name="TResource">App domain resource type.</typeparam>
-public interface IResourceResolver<TResource>
+public interface IResourceHydrator
 {
     /// <summary>
     /// Returns a hydrated <see cref="Resource"/> for <paramref name="partial"/>.
     /// </summary>
-    /// <param name="partial">Resource as supplied by the caller (at least type and id).</param>
+    /// <param name="partial">Resource as supplied by the caller.</param>
     /// <param name="cancellationToken">Cancellation for I/O-bound lookup.</param>
     /// <returns>Complete resource used in the bundle.</returns>
     Task<Resource> HydrateAsync(Resource partial, CancellationToken cancellationToken);

@@ -81,8 +81,6 @@ public static class AccessControlManagementServiceCollectionExtensions
             new EntityFrameworkSodConstraintStore(provider.GetRequiredService<TContext>()));
         services.AddScoped<IPolicySetEditor>(provider =>
             new EntityFrameworkPolicySetEditor(provider.GetRequiredService<TContext>()));
-        services.AddScoped<IResourceStore>(provider =>
-            new EntityFrameworkResourceStore(provider.GetRequiredService<TContext>()));
 
         var layout = SubjectStorageLayoutResolver.Resolve(options.SubjectMapping);
         if (layout is SubjectStorageLayout.Native or SubjectStorageLayout.MappedLibraryRoles)

@@ -365,3 +365,7 @@ FodyWeavers.xsd
 TestProjects/
 
 *.sln
+# Local git worktrees (SDD / agents)
+.worktrees/
+.superpowers/
+

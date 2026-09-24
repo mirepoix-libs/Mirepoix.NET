@@ -86,7 +86,7 @@ public class LocalCheckFlowTests
         var policySource = new MemoryPolicySource(EditorDraftSet("v1"));
         var hydrator = new CompositeBundleHydrator(
             new InMemorySubjectResolver(subjects),
-            new InMemoryResourceResolver(resources));
+            new TestResourceHydrator(resources));
         var checker = new LocalAccessChecker(policySource, hydrator);
         return (subjects, policySource, checker);
     }

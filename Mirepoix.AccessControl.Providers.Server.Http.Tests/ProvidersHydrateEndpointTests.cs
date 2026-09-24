@@ -87,4 +87,16 @@ public sealed class ProvidersHydrateEndpointTests
 
         Assert.Contains("ISubjectResolver", exception.Message);
     }
+
+    [Fact]
+    public void MapAccessControlProviders_Throws_WhenResourceEnabledButHydratorMissing()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddResource());
+        using var app = builder.Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
+
+        Assert.Contains("IResourceHydrator", exception.Message);
+    }
 }

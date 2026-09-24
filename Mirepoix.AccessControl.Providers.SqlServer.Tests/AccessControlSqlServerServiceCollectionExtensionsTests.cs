@@ -21,7 +21,7 @@ public class AccessControlSqlServerServiceCollectionExtensionsTests
 
         Assert.IsType<SqlServerPolicySource>(sp.GetRequiredService<IPolicySource>());
         Assert.IsType<SqlServerSubjectResolver>(sp.GetRequiredService<ISubjectResolver>());
-        Assert.IsType<SqlServerResourceResolver>(sp.GetRequiredService<IResourceResolver>());
+        Assert.Null(sp.GetService<IResourceHydrator>());
         Assert.IsType<CompositeBundleHydrator>(sp.GetRequiredService<IBundleHydrator>());
         Assert.NotNull(sp.GetRequiredService<SqlServerSchemaMigrator>());
         Assert.Equal(
@@ -52,7 +52,6 @@ public class AccessControlSqlServerServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         services.AddAccessControlPolicyProviders(o => o.ConnectionString = "Server=.;");
         services.AddAccessControlSubjectProviders();
-        services.AddAccessControlResourceProviders();
 
         Assert.Equal(1, services.Count(d => d.ServiceType == typeof(SqlServerProviderOptions)));
         Assert.Equal(1, services.Count(d => d.ServiceType == typeof(SqlServerSchemaMigrator)));

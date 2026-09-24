@@ -47,10 +47,10 @@ public static class AccessControlProvidersServerHttpExtensions
                 "Providers HTTP subject hydrate requires ISubjectResolver.");
         }
 
-        if (options.ResourceEnabled && !probe.IsService(typeof(IResourceResolver)))
+        if (options.ResourceEnabled && !probe.IsService(typeof(IResourceHydrator)))
         {
             throw new InvalidOperationException(
-                "Providers HTTP resource hydrate requires IResourceResolver.");
+                "Providers HTTP resource hydrate requires IResourceHydrator.");
         }
 
         if (options.ContextEnabled && !probe.IsService(typeof(IContextResolver)))
@@ -89,7 +89,7 @@ public static class AccessControlProvidersServerHttpExtensions
         {
             group.MapPost(AccessControlHttpRoutes.ProvidersResourceHydrateRelative, async (
                 HttpRequest request,
-                IResourceResolver resolver,
+                IResourceHydrator hydrator,
                 CancellationToken cancellationToken) =>
             {
                 var body = await ReadBodyAsync<ResourceDto>(request, cancellationToken).ConfigureAwait(false);
@@ -100,7 +100,7 @@ public static class AccessControlProvidersServerHttpExtensions
 
                 return await HydrateAsync(
                     () => body.Value!.ToDomain(),
-                    partial => resolver.HydrateAsync(partial, cancellationToken),
+                    partial => hydrator.HydrateAsync(partial, cancellationToken),
                     ResourceDto.FromDomain).ConfigureAwait(false);
             });
         }

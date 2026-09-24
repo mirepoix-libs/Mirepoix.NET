@@ -7,8 +7,8 @@ namespace Mirepoix.AccessControl.Providers;
 /// <summary>
 /// Applies the embedded dialect schema scripts for package-driven mode against <see cref="AccessControlDbContext"/>.
 /// Resolves dialect from the EF database provider name via <see cref="AccessControlSchemaDialectMap"/>.
-/// Applies core and management scripts for every layout, subject-role DDL when library-owned, and native subject DDL
-/// only for native storage.
+/// Applies core and management scripts for every layout, subject-role DDL when library-owned, native subject DDL
+/// only for native storage, and the legacy <c>ac_resource_attribute</c> drop script last on every layout.
 /// Only SqlServer and PostgreSQL provider names are supported; other providers need app-owned migrations.
 /// Registered only by package-driven DI helpers.
 /// </summary>
@@ -27,7 +27,7 @@ public sealed class AccessControlSchemaApplier
 
     /// <summary>
     /// Opens the context connection if needed and executes each ordered script batch for the resolved dialect and
-    /// configured subject-storage layout.
+    /// configured subject-storage layout, including the idempotent legacy resource-attribute drop script.
     /// </summary>
     /// <param name="cancellationToken">Cancellation for open/execute.</param>
     /// <exception cref="NotSupportedException">

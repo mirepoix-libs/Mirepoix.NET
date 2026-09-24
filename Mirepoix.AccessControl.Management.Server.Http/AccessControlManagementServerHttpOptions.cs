@@ -12,7 +12,6 @@ public sealed class AccessControlManagementServerHttpOptions
     public string? AuthorizationPolicy { get; set; }
 
     internal bool SubjectsEnabled { get; private set; }
-    internal bool ResourcesEnabled { get; private set; }
     internal bool RolesEnabled { get; private set; }
     internal bool SodEnabled { get; private set; }
     internal bool PolicySetEnabled { get; private set; }
@@ -21,13 +20,6 @@ public sealed class AccessControlManagementServerHttpOptions
     public AccessControlManagementServerHttpOptions AddSubjects()
     {
         SubjectsEnabled = true;
-        return this;
-    }
-
-    /// <summary>Enables resource management endpoints.</summary>
-    public AccessControlManagementServerHttpOptions AddResources()
-    {
-        ResourcesEnabled = true;
         return this;
     }
 

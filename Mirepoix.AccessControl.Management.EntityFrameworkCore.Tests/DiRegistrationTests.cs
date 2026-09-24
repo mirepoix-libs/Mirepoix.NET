@@ -75,7 +75,6 @@ public sealed class DiRegistrationTests
     {
         Assert.IsType<EntityFrameworkRoleCatalog>(provider.GetRequiredService<IRoleCatalog>());
         Assert.IsType<EntityFrameworkSodConstraintStore>(provider.GetRequiredService<ISodConstraintStore>());
-        Assert.IsType<EntityFrameworkResourceStore>(provider.GetRequiredService<IResourceStore>());
         Assert.IsType<EntityFrameworkPolicySetEditor>(provider.GetRequiredService<IPolicySetEditor>());
     }
 

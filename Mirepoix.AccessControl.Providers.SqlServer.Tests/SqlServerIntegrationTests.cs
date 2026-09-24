@@ -72,21 +72,6 @@ public class SqlServerIntegrationTests
                 insertSubject.Parameters.AddWithValue("@value", AttributeValueCodec.ToJson("finance")!);
                 await insertSubject.ExecuteNonQueryAsync();
             }
-
-            await using (var insertResource = connection.CreateCommand())
-            {
-                insertResource.CommandText =
-                    $"""
-                     INSERT INTO dbo.{AccessControlSchema.ResourceAttributeTable}
-                         (resource_type, resource_id, name, value_json)
-                     VALUES (@type, @id, @name, @value)
-                     """;
-                insertResource.Parameters.AddWithValue("@type", "doc");
-                insertResource.Parameters.AddWithValue("@id", "42");
-                insertResource.Parameters.AddWithValue("@name", "ownerId");
-                insertResource.Parameters.AddWithValue("@value", AttributeValueCodec.ToJson("user-1")!);
-                await insertResource.ExecuteNonQueryAsync();
-            }
         }
 
         var source = new SqlServerPolicySource(options);
@@ -100,12 +85,6 @@ public class SqlServerIntegrationTests
             CancellationToken.None);
         Assert.Contains("EDITOR", subject.Roles);
         Assert.Equal("finance", subject.Attributes["dept"]);
-
-        var resources = new SqlServerResourceResolver(options);
-        var resource = await resources.HydrateAsync(
-            new Resource("doc", "42", new Dictionary<string, object?>()),
-            CancellationToken.None);
-        Assert.Equal("user-1", resource.Attributes["ownerId"]);
     }
 
     [Fact]
@@ -164,7 +143,6 @@ public class SqlServerIntegrationTests
              DELETE FROM dbo.{AccessControlSchema.SubjectAttributeTable};
              DELETE FROM dbo.{AccessControlSchema.SubjectRoleTable};
              DELETE FROM dbo.{AccessControlSchema.SubjectTable};
-             DELETE FROM dbo.{AccessControlSchema.ResourceAttributeTable};
              DELETE FROM dbo.{AccessControlSchema.PolicySetTable};
              """;
         await cmd.ExecuteNonQueryAsync();

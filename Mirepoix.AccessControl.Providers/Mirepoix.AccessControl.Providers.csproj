@@ -11,9 +11,13 @@
     <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.SqlServer" />
     <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.SqlServer.Tests" />
+    <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.EntityFrameworkCore" />
     <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.EntityFrameworkCore.Tests" />
+    <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.Client.Http" />
     <InternalsVisibleTo Include="Mirepoix.AccessControl.Providers.Tests" />
+    <InternalsVisibleTo Include="Mirepoix.AccessControl.Authorization.AspNetCore" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Schema\Scripts\SqlServer\001_init.sql">
@@ -28,6 +32,9 @@
     <EmbeddedResource Include="Schema\Scripts\SqlServer\002b_subjects.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.002b_subjects.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\SqlServer\003_drop_resource_attribute.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.003_drop_resource_attribute.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="Schema\Scripts\PostgreSql\001_init.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001_init.sql</LogicalName>
     </EmbeddedResource>
@@ -39,6 +46,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Schema\Scripts\PostgreSql\002b_subjects.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.002b_subjects.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\PostgreSql\003_drop_resource_attribute.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.003_drop_resource_attribute.sql</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

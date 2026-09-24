@@ -50,6 +50,7 @@ public class SchemaScriptTests
                 AccessControlSchemaDialectMap.SqlServerSubjectRolesResource,
                 AccessControlSchemaDialectMap.SqlServerManagementResource,
                 AccessControlSchemaDialectMap.SqlServerSubjectsResource,
+                AccessControlSchemaDialectMap.SqlServerDropResourceAttributeResource,
             ]
         },
         {
@@ -58,6 +59,7 @@ public class SchemaScriptTests
                 AccessControlSchemaDialectMap.SqlServerCoreResource,
                 AccessControlSchemaDialectMap.SqlServerSubjectRolesResource,
                 AccessControlSchemaDialectMap.SqlServerManagementResource,
+                AccessControlSchemaDialectMap.SqlServerDropResourceAttributeResource,
             ]
         },
         {
@@ -65,6 +67,7 @@ public class SchemaScriptTests
             [
                 AccessControlSchemaDialectMap.SqlServerCoreResource,
                 AccessControlSchemaDialectMap.SqlServerManagementResource,
+                AccessControlSchemaDialectMap.SqlServerDropResourceAttributeResource,
             ]
         },
     };

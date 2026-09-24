@@ -102,21 +102,3 @@ public sealed class SubjectAttributeEntity
     public SubjectEntity? Subject { get; set; }
 }
 
-/// <summary>
-/// Holds the row shape for <c>ac_resource_attribute</c> (no separate resource header table).
-/// </summary>
-public sealed class ResourceAttributeEntity
-{
-    /// <summary>Names the resource type segment of the identity.</summary>
-    public string ResourceType { get; set; } = "";
-
-    /// <summary>Names the resource id segment of the identity.</summary>
-    public string ResourceId { get; set; } = "";
-
-    /// <summary>Names the attribute.</summary>
-    public string Name { get; set; } = "";
-
-    /// <summary>Holds the attribute value as JSON text; may be null.</summary>
-    public string? ValueJson { get; set; }
-}
-

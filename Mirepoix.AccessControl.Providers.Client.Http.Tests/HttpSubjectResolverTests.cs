@@ -78,6 +78,21 @@ public sealed class HttpSubjectResolverTests
         Assert.IsType<CompositeBundleHydrator>(provider.GetRequiredService<IBundleHydrator>());
     }
 
+    [Fact]
+    public void AddAccessControlProvidersClientHttp_RegistersHttpResourceHydrator()
+    {
+        var services = new ServiceCollection();
+        services.AddAccessControlProvidersClientHttp(options =>
+        {
+            options.BaseAddress = new Uri("http://localhost/");
+            options.AddResource();
+        });
+
+        using var provider = services.BuildServiceProvider();
+        Assert.IsType<HttpResourceHydrator>(provider.GetRequiredService<IResourceHydrator>());
+        Assert.IsType<CompositeBundleHydrator>(provider.GetRequiredService<IBundleHydrator>());
+    }
+
     private static HttpResponseMessage JsonResponse<T>(T body) =>
         new(HttpStatusCode.OK)
         {

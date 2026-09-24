@@ -136,29 +136,6 @@ public sealed class WriterTests
     }
 
     [Fact]
-    public async Task Resource_store_upserts_reads_and_clears_encoded_attributes()
-    {
-        await using var db = CreateContext();
-        var resources = new EntityFrameworkResourceStore(db);
-
-        await resources.SetOwnerAsync("invoice", "42", "alice");
-        await resources.SetAttributeAsync("invoice", "42", "region", "west");
-
-        var owner = await db.ResourceAttributes.SingleAsync(x => x.Name == "ownerId");
-        Assert.Equal("alice", AttributeValueCodec.FromJson(owner.ValueJson));
-        Assert.Equal(2, await db.ResourceAttributes.CountAsync());
-        Assert.Equal("alice", await resources.GetOwnerAsync("invoice", "42"));
-        Assert.Equal(
-            "west",
-            (await resources.GetAttributesAsync("invoice", "42"))["region"]);
-
-        await resources.ClearOwnerAsync("invoice", "42");
-        await resources.ClearAttributeAsync("invoice", "42", "region");
-        Assert.Empty(await db.ResourceAttributes.ToListAsync());
-        Assert.Null(await resources.GetOwnerAsync("invoice", "42"));
-    }
-
-    [Fact]
     public async Task Native_subject_store_manages_headers_attributes_and_delete_cleanup()
     {
         await using var db = CreateContext();

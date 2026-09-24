@@ -42,9 +42,6 @@ public sealed class AccessControlDbContext : DbContext
     /// <summary>Exposes subject attribute rows.</summary>
     public DbSet<SubjectAttributeEntity> SubjectAttributes => Set<SubjectAttributeEntity>();
 
-    /// <summary>Exposes resource attribute rows.</summary>
-    public DbSet<ResourceAttributeEntity> ResourceAttributes => Set<ResourceAttributeEntity>();
-
     /// <inheritdoc />
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

@@ -40,7 +40,7 @@ public class CompositeBundleHydratorTests
     [Fact]
     public async Task Composite_hydrator_fills_resource_from_resolver()
     {
-        var resources = new InMemoryResourceResolver(new Dictionary<(string Type, string Id), IReadOnlyDictionary<string, object?>>
+        var resources = new TestResourceHydrator(new Dictionary<(string Type, string Id), IReadOnlyDictionary<string, object?>>
         {
             [("doc", "1")] = new Dictionary<string, object?> { ["owner"] = "u1" }
         });
@@ -85,9 +85,9 @@ public class CompositeBundleHydratorTests
     }
 
     [Fact]
-    public async Task InMemoryResourceResolver_missing_key_throws_KeyNotFoundException()
+    public async Task Resource_hydrator_missing_key_throws_KeyNotFoundException()
     {
-        var resources = new InMemoryResourceResolver(
+        var resources = new TestResourceHydrator(
             new Dictionary<(string Type, string Id), IReadOnlyDictionary<string, object?>>());
         var hydrator = new CompositeBundleHydrator(null, resources, null);
 

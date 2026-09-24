@@ -24,7 +24,7 @@ public static class AccessControlSchemaScripts
     }
 
     /// <summary>
-    /// Loads core, subject-role, management, then native-subject scripts for the dialect in schema-application order.
+    /// Loads core, subject-role, management, native-subject, then legacy resource-drop scripts in application order.
     /// </summary>
     /// <param name="dialect">Target database dialect.</param>
     /// <returns>

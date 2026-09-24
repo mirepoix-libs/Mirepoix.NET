@@ -67,13 +67,6 @@ public class PackageDrivenIntegrationTests
             });
             db.SubjectRoles.Add(
                 new SubjectRoleEntity { SubjectId = "user-1", Role = "EDITOR" });
-            db.ResourceAttributes.Add(new ResourceAttributeEntity
-            {
-                ResourceType = "doc",
-                ResourceId = "42",
-                Name = "ownerId",
-                ValueJson = AttributeValueCodec.ToJson("user-1"),
-            });
             await db.SaveChangesAsync();
         }
 
@@ -87,12 +80,6 @@ public class PackageDrivenIntegrationTests
             CancellationToken.None);
         Assert.Contains("EDITOR", subject.Roles);
         Assert.Equal("finance", subject.Attributes["dept"]);
-
-        var resources = sp.GetRequiredService<IResourceResolver>();
-        var resource = await resources.HydrateAsync(
-            new Resource("doc", "42", new Dictionary<string, object?>()),
-            CancellationToken.None);
-        Assert.Equal("user-1", resource.Attributes["ownerId"]);
 
         var checker = new LocalAccessChecker(source, sp.GetRequiredService<IBundleHydrator>());
         var decision = await checker.CheckAsync(
@@ -114,7 +101,6 @@ public class PackageDrivenIntegrationTests
         db.SubjectAttributes.RemoveRange(db.SubjectAttributes);
         db.SubjectRoles.RemoveRange(db.SubjectRoles);
         db.Subjects.RemoveRange(db.Subjects);
-        db.ResourceAttributes.RemoveRange(db.ResourceAttributes);
         db.PolicySets.RemoveRange(db.PolicySets);
         await db.SaveChangesAsync();
     }

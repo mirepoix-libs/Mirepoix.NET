@@ -8,7 +8,7 @@ namespace Mirepoix.AccessControl.Providers;
 public sealed class CompositeBundleHydrator : IBundleHydrator
 {
     private readonly ISubjectResolver? _subject;
-    private readonly IResourceResolver? _resource;
+    private readonly IResourceHydrator? _resource;
     private readonly IContextResolver? _context;
 
     /// <summary>
@@ -19,7 +19,7 @@ public sealed class CompositeBundleHydrator : IBundleHydrator
     /// <param name="context">Optional context hydrator.</param>
     public CompositeBundleHydrator(
         ISubjectResolver? subject = null,
-        IResourceResolver? resource = null,
+        IResourceHydrator? resource = null,
         IContextResolver? context = null)
     {
         _subject = subject;

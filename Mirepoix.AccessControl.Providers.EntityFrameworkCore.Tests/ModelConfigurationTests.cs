@@ -27,7 +27,7 @@ public class ModelConfigurationTests
         Assert.Contains("ac_subject", entityTypes.Keys);
         Assert.Contains("ac_subject_role", entityTypes.Keys);
         Assert.Contains("ac_subject_attribute", entityTypes.Keys);
-        Assert.Contains("ac_resource_attribute", entityTypes.Keys);
+        Assert.DoesNotContain("ac_resource_attribute", entityTypes.Keys);
         Assert.Contains("ac_role", entityTypes.Keys);
         Assert.Contains("ac_sod_constraint", entityTypes.Keys);
         Assert.Contains("ac_sod_constraint_role", entityTypes.Keys);
@@ -79,9 +79,9 @@ public class ModelConfigurationTests
     }
 
     [Theory]
-    [InlineData(SubjectStorageLayout.Native, 4)]
-    [InlineData(SubjectStorageLayout.MappedLibraryRoles, 3)]
-    [InlineData(SubjectStorageLayout.MappedAppOwnedRoles, 2)]
+    [InlineData(SubjectStorageLayout.Native, 5)]
+    [InlineData(SubjectStorageLayout.MappedLibraryRoles, 4)]
+    [InlineData(SubjectStorageLayout.MappedAppOwnedRoles, 3)]
     public void Schema_applier_selects_ordered_scripts_for_layout(
         SubjectStorageLayout layout,
         int expectedCount)
@@ -98,6 +98,7 @@ public class ModelConfigurationTests
             Assert.EndsWith("001b_subject_roles.sql", resources[1], StringComparison.Ordinal);
         if (layout == SubjectStorageLayout.Native)
             Assert.EndsWith("002b_subjects.sql", resources[3], StringComparison.Ordinal);
+        Assert.EndsWith("003_drop_resource_attribute.sql", resources[^1], StringComparison.Ordinal);
     }
 
     [Fact]
