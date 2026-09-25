@@ -33,6 +33,35 @@ public static class AccessControlServiceCollectionExtensions
         builder.Complete();
         return services;
     }
+
+    /// <summary>
+    /// Adds <paramref name="operation"/> to the singleton <see cref="PublishedOperationList"/>.
+    /// Creates that list when it is missing. Rejects the string before storing it.
+    /// </summary>
+    /// <param name="services">Application service collection.</param>
+    /// <param name="operation">Concrete operation string. No segment may equal <c>*</c>.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is null.</exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="operation"/> is null, blank, or any <c>:</c> segment equals <c>*</c>.
+    /// </exception>
+    public static IServiceCollection AddAccessControlOperation(this IServiceCollection services, string operation)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var list = PublishedOperationList.GetOrAdd(services);
+        if (operation is null
+            || string.IsNullOrWhiteSpace(operation)
+            || operation.Split(':').Any(segment => segment == "*"))
+        {
+            throw new ArgumentException(
+                "Operation must be a concrete non-blank value with no * segment.",
+                nameof(operation));
+        }
+
+        list.Add(operation);
+        return services;
+    }
 }
 
 /// <summary>

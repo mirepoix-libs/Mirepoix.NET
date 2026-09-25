@@ -25,6 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Mirepoix.AccessControl.Authorization.AspNetCore\Mirepoix.AccessControl.Authorization.AspNetCore.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl.Management\Mirepoix.AccessControl.Management.csproj" />
     <ProjectReference Include="..\Mirepoix.AccessControl.Management.Server.Http\Mirepoix.AccessControl.Management.Server.Http.csproj" />
   </ItemGroup>
 

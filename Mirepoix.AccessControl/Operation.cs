@@ -2,8 +2,9 @@ namespace Mirepoix.AccessControl;
 
 /// <summary>
 /// Models a hierarchical operation string split on <c>:</c> (e.g. <c>document:read</c>, <c>admin:*</c>).
-/// Matching is segment-wise: lengths must be equal; a pattern segment of <c>*</c> matches any
-/// value in that position; otherwise comparison is ordinal. Call
+/// Matching is segment-wise: a pattern segment of <c>*</c> matches any value in that position;
+/// otherwise comparison is ordinal. When every pattern segment is <c>*</c>, any concrete length
+/// matches; all other patterns require equal segment counts. Call
 /// <c>concrete.Matches(pattern)</c>; the receiver is the request operation, the argument is
 /// the policy pattern (wildcards live on the pattern).
 /// </summary>
@@ -11,7 +12,8 @@ namespace Mirepoix.AccessControl;
 /// Not a record: equality is reference-based unless callers compare <see cref="Value"/>.
 /// Empty or null input to <see cref="Parse"/> throws. A single segment (no colon) is valid.
 /// <c>*</c> is only special as a whole segment, not as a substring inside a segment.
-/// Different segment counts never match (e.g. <c>a:b</c> vs <c>a:b:c</c>).
+/// Different segment counts never match except for all-wildcard patterns (e.g. <c>a:b</c> vs
+/// <c>a:b:c</c>, but <c>*</c> matches any concrete operation).
 /// </remarks>
 public sealed class Operation
 {
@@ -48,11 +50,14 @@ public sealed class Operation
     /// corresponding segment on this instance; other segments require ordinal equality.
     /// </param>
     /// <returns>
-    /// <see langword="false"/> if segment counts differ or any non-wildcard segment mismatches;
-    /// otherwise <see langword="true"/>.
+    /// <see langword="true"/> when every pattern segment is <c>*</c>, or when segment counts are
+    /// equal and every non-wildcard segment matches; otherwise <see langword="false"/>.
     /// </returns>
     public bool Matches(Operation pattern)
     {
+        if (pattern._segments.Length > 0 && pattern._segments.All(segment => segment == "*"))
+            return true;
+
         if (_segments.Length != pattern._segments.Length)
             return false;
 

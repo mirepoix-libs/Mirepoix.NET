@@ -140,7 +140,8 @@ public sealed class AccessControlBuilder
     /// <summary>
     /// Completes DI: validates <see cref="IPolicySource"/> or pre-registered <see cref="IAccessChecker"/>, then TryAdds
     /// defaults for mapper, hydrator, combination strategy, <see cref="LocalAccessChecker"/>, authorization handler,
-    /// policy, and scoped <see cref="AccessEndpointFilter"/>.
+    /// policy, and scoped <see cref="AccessEndpointFilter"/>. Replaces <see cref="IAccessChecker"/> with
+    /// <see cref="PublishedOperationAccessChecker"/> around the previous registration, including a remote checker.
     /// </summary>
     /// <exception cref="InvalidOperationException">
     /// Thrown when neither this builder nor the service collection has an <see cref="IPolicySource"/> or
@@ -179,6 +180,10 @@ public sealed class AccessControlBuilder
             return new LocalAccessChecker(source, hydrator, strategy);
         });
 
+        PublishedOperationList.GetOrAdd(_services);
+        _services.TryAddSingleton<PublishedOperationSource>();
+        WrapAccessChecker();
+
         _services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IAuthorizationHandler, AccessAuthorizationHandler>());
 
@@ -190,5 +195,54 @@ public sealed class AccessControlBuilder
         });
 
         _services.TryAddScoped<AccessEndpointFilter>();
+    }
+
+    /// <summary>
+    /// Replaces the last <see cref="IAccessChecker"/> registration with <see cref="PublishedOperationAccessChecker"/>.
+    /// The previous instance, factory, or type is invoked as the inner checker, including a remote checker
+    /// that was registered before completion.
+    /// </summary>
+    private void WrapAccessChecker()
+    {
+        ServiceDescriptor? previous = null;
+        for (var i = _services.Count - 1; i >= 0; i--)
+        {
+            if (_services[i].ServiceType != typeof(IAccessChecker))
+                continue;
+
+            previous = _services[i];
+            _services.RemoveAt(i);
+            break;
+        }
+
+        if (previous is null)
+            return;
+
+        var captured = previous;
+        _services.Add(ServiceDescriptor.Describe(
+            typeof(IAccessChecker),
+            sp => new PublishedOperationAccessChecker(
+                CreateInnerChecker(sp, captured),
+                sp.GetRequiredService<PublishedOperationSource>()),
+            captured.Lifetime));
+    }
+
+    /// <summary>
+    /// Builds the checker the descriptor registered before it was wrapped.
+    /// </summary>
+    /// <param name="services">Provider used for factory and type activations.</param>
+    /// <param name="descriptor">Registration captured before replacement.</param>
+    /// <returns>The inner <see cref="IAccessChecker"/>.</returns>
+    private static IAccessChecker CreateInnerChecker(IServiceProvider services, ServiceDescriptor descriptor)
+    {
+        if (descriptor.ImplementationInstance is IAccessChecker instance)
+            return instance;
+
+        if (descriptor.ImplementationFactory is not null)
+            return (IAccessChecker)descriptor.ImplementationFactory(services);
+
+        return (IAccessChecker)ActivatorUtilities.CreateInstance(
+            services,
+            descriptor.ImplementationType!);
     }
 }

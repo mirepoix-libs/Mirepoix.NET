@@ -24,6 +24,15 @@ public static class AccessControlManagementServerHttpExtensions
         var options = new AccessControlManagementServerHttpOptions();
         configure(options);
         services.AddSingleton(options);
+        if (options.EnforcementApps.Count > 0)
+        {
+            services.AddAccessControlOperationCatalog(catalog =>
+            {
+                foreach (var app in options.EnforcementApps)
+                    catalog.AddApp(app.Name, app.Origin);
+            });
+        }
+
         return services;
     }
 
@@ -59,6 +68,11 @@ public static class AccessControlManagementServerHttpExtensions
         if (options.PolicySetEnabled)
         {
             MapPolicySet(group);
+        }
+
+        if (options.EnforcementApps.Count > 0)
+        {
+            MapOperations(group);
         }
 
         return endpoints;
@@ -243,7 +257,6 @@ public static class AccessControlManagementServerHttpExtensions
             {
                 var policySet = PolicySerializers.FromJson(json);
                 await editor.ReplaceAsync(policySet, cancellationToken);
-                return Results.NoContent();
             }
             catch (JsonException exception)
             {
@@ -251,6 +264,49 @@ public static class AccessControlManagementServerHttpExtensions
                     exception.Message,
                     statusCode: StatusCodes.Status400BadRequest);
             }
+            catch (OperationCatalogUnavailableException exception)
+            {
+                return Results.Problem(
+                    exception.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (ArgumentException exception)
+            {
+                return Results.Problem(
+                    exception.Message,
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            var snapshot = request.HttpContext.RequestServices.GetService<OperationCatalogSnapshot>();
+            if (snapshot?.LastPull is { FailedApps.Count: > 0 } pull)
+            {
+                return Results.Json(new { failedApps = pull.FailedApps }, statusCode: StatusCodes.Status200OK);
+            }
+
+            return Results.NoContent();
+        });
+    }
+
+    private static void MapOperations(RouteGroupBuilder group)
+    {
+        group.MapGet("/operations", async (
+            IEnforcementCatalogClient client,
+            OperationCatalogSnapshot snapshot,
+            CancellationToken cancellationToken) =>
+        {
+            var pull = await client.PullAsync(cancellationToken);
+            if (pull.FailedApps.Count == 0)
+                snapshot.Apply(pull);
+
+            return Results.Ok(new
+            {
+                apps = pull.Apps.Select(app => new
+                {
+                    name = app.Name,
+                    operations = app.Operations,
+                }),
+                failedApps = pull.FailedApps,
+            });
         });
     }
 

@@ -11,10 +11,17 @@ public sealed class AccessControlManagementServerHttpOptions
     /// <summary>Gets or sets the optional authorization policy applied to every management endpoint.</summary>
     public string? AuthorizationPolicy { get; set; }
 
+    private readonly List<(string Name, string Origin)> _enforcementApps = [];
+
     internal bool SubjectsEnabled { get; private set; }
     internal bool RolesEnabled { get; private set; }
     internal bool SodEnabled { get; private set; }
     internal bool PolicySetEnabled { get; private set; }
+
+    /// <summary>
+    /// Gets enforcement apps in registration order. Empty when catalog pull and the aggregate GET stay off.
+    /// </summary>
+    internal IReadOnlyList<(string Name, string Origin)> EnforcementApps => _enforcementApps;
 
     /// <summary>Enables subject management endpoints.</summary>
     public AccessControlManagementServerHttpOptions AddSubjects()
@@ -41,6 +48,18 @@ public sealed class AccessControlManagementServerHttpOptions
     public AccessControlManagementServerHttpOptions AddPolicySet()
     {
         PolicySetEnabled = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Appends an enforcement app. A non-empty list registers the operation catalog and maps <c>GET /operations</c>.
+    /// </summary>
+    /// <param name="name">App name copied onto successful catalogs and <c>failedApps</c>.</param>
+    /// <param name="origin">Scheme, host, and port. A trailing slash is removed when the catalog URL is built.</param>
+    /// <returns>This options instance.</returns>
+    public AccessControlManagementServerHttpOptions AddEnforcementApp(string name, string origin)
+    {
+        _enforcementApps.Add((name, origin));
         return this;
     }
 }
