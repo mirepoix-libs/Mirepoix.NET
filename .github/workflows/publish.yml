@@ -70,6 +70,7 @@ jobs:
             Mirepoix.AccessControl.Providers.EntityFrameworkCore/Mirepoix.AccessControl.Providers.EntityFrameworkCore.csproj
             Mirepoix.AccessControl.Management.EntityFrameworkCore/Mirepoix.AccessControl.Management.EntityFrameworkCore.csproj
             Mirepoix.AccessControl.Management.Server.Http/Mirepoix.AccessControl.Management.Server.Http.csproj
+            Mirepoix.AccessControl.Management/Mirepoix.AccessControl.Management.csproj
           )
           for p in "${projects[@]}"; do
             dotnet pack "$p" -c Release \
