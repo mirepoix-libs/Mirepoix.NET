@@ -1,3 +1,5 @@
+![mirepoix logo](img/mirepoix-logo.png)
+
 # Mirepoix.AccessControl
 
 Authorization libraries for .NET 8. One attribute-based evaluation kernel evaluates policies as data and returns Allow or Deny.
