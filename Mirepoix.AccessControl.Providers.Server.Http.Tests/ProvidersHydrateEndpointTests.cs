@@ -1,11 +1,16 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using Mirepoix.AccessControl.Protocol.Http;
 using Mirepoix.AccessControl.Providers;
 using Mirepoix.AccessControl.Providers.Server.Http;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Mirepoix.AccessControl.Providers.Server.Http.Tests;
 
@@ -24,8 +29,15 @@ public sealed class ProvidersHydrateEndpointTests
                     new HashSet<string> { "editor" },
                     new Dictionary<string, object?> { ["dept"] = "eng" }),
             }));
-        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddSubject());
+        UseCallerPolicy(builder);
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddSubject();
+            options.AuthorizationPolicy = "Caller";
+        });
         await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapAccessControlProviders();
         await app.StartAsync();
         using var client = app.GetTestClient();
@@ -50,8 +62,15 @@ public sealed class ProvidersHydrateEndpointTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<ISubjectResolver>(
             new InMemorySubjectResolver(new Dictionary<string, Subject>()));
-        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddSubject());
+        UseCallerPolicy(builder);
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddSubject();
+            options.AuthorizationPolicy = "Caller";
+        });
         await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapAccessControlProviders();
         await app.StartAsync();
         using var client = app.GetTestClient();
@@ -68,7 +87,7 @@ public sealed class ProvidersHydrateEndpointTests
     public void MapAccessControlProviders_Throws_WhenNoSlicesEnabled()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Services.AddAccessControlProvidersServerHttp(_ => { });
+        builder.Services.AddAccessControlProvidersServerHttp(options => options.AuthorizationPolicy = "Caller");
         using var app = builder.Build();
 
         var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
@@ -80,7 +99,11 @@ public sealed class ProvidersHydrateEndpointTests
     public void MapAccessControlProviders_Throws_WhenSubjectEnabledButResolverMissing()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddSubject());
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddSubject();
+            options.AuthorizationPolicy = "Caller";
+        });
         using var app = builder.Build();
 
         var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
@@ -92,11 +115,105 @@ public sealed class ProvidersHydrateEndpointTests
     public void MapAccessControlProviders_Throws_WhenResourceEnabledButHydratorMissing()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddResource());
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddResource();
+            options.AuthorizationPolicy = "Caller";
+        });
         using var app = builder.Build();
 
         var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
 
         Assert.Contains("IResourceHydrator", exception.Message);
+    }
+
+    [Fact]
+    public void MapAccessControlProviders_ThrowsWhenAuthorizationPolicyMissing()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<ISubjectResolver>(new InMemorySubjectResolver(new Dictionary<string, Subject>()));
+        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddSubject());
+        using var app = builder.Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
+
+        Assert.Equal("Access-control HTTP routes require an authorization policy.", exception.Message);
+    }
+
+    [Fact]
+    public async Task SubjectHydrate_WithoutCaller_DoesNotReturnAttributes()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<ISubjectResolver>(
+            new InMemorySubjectResolver(new Dictionary<string, Subject>
+            {
+                ["alice"] = new Subject(
+                    "alice",
+                    new HashSet<string> { "editor" },
+                    new Dictionary<string, object?>()),
+            }));
+        builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, HeaderTestHandler>("Test", _ => { });
+        builder.Services.AddAuthorization(options => options.AddPolicy("Caller", policy =>
+        {
+            policy.AddAuthenticationSchemes("Test");
+            policy.RequireAuthenticatedUser();
+        }));
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddSubject();
+            options.AuthorizationPolicy = "Caller";
+        });
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapAccessControlProviders();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            AccessControlHttpRoutes.AbsoluteProvidersSubjectHydratePath,
+            new { id = "alice", roles = Array.Empty<string>(), attributes = new { } },
+            AccessControlHttpJson.DefaultOptions);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.DoesNotContain("editor", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void UseCallerPolicy(WebApplicationBuilder builder)
+    {
+        builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, AllowTestHandler>("Test", _ => { });
+        builder.Services.AddAuthorization(options => options.AddPolicy("Caller", policy =>
+        {
+            policy.AddAuthenticationSchemes("Test");
+            policy.RequireAuthenticatedUser();
+        }));
+    }
+
+    private sealed class AllowTestHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+    {
+        public AllowTestHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+            : base(options, logger, encoder) { }
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "test")], "Test");
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), "Test")));
+        }
+    }
+
+    private sealed class HeaderTestHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+    {
+        public HeaderTestHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+            : base(options, logger, encoder) { }
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            if (!Request.Headers.ContainsKey("Authorization"))
+                return Task.FromResult(AuthenticateResult.NoResult());
+
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "test")], "Test");
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), "Test")));
+        }
     }
 }

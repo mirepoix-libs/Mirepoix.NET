@@ -10,7 +10,14 @@ public sealed class AccessControlProvidersServerHttpOptions
     /// <summary>Gets or sets the shared route prefix. Default is <c>/access-control</c>.</summary>
     public string RoutePrefix { get; set; } = AccessControlHttpRoutes.DefaultPrefix;
 
-    /// <summary>Gets or sets the optional authorization policy applied to every hydrate endpoint.</summary>
+    /// <summary>
+    /// Gets or sets the host authorization policy name applied to every hydrate route. Required at map time.
+    /// </summary>
+    /// <remarks>
+    /// <c>MapAccessControlProviders</c> throws <see cref="InvalidOperationException"/> when this value is null or white space.
+    /// The message is "Access-control HTTP routes require an authorization policy."
+    /// This package does not register an authentication scheme.
+    /// </remarks>
     public string? AuthorizationPolicy { get; set; }
 
     internal bool SubjectEnabled { get; private set; }

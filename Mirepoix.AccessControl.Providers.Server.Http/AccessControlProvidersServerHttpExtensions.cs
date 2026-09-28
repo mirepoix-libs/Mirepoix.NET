@@ -29,6 +29,11 @@ public static class AccessControlProvidersServerHttpExtensions
     /// <summary>
     /// Maps enabled PIP hydrate endpoints under the configured route prefix.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when no slice is enabled, when an enabled slice is missing its resolver,
+    /// or when <see cref="AccessControlProvidersServerHttpOptions.AuthorizationPolicy"/> is null or white space.
+    /// The missing-policy message is "Access-control HTTP routes require an authorization policy."
+    /// </exception>
     public static IEndpointRouteBuilder MapAccessControlProviders(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -57,6 +62,11 @@ public static class AccessControlProvidersServerHttpExtensions
         {
             throw new InvalidOperationException(
                 "Providers HTTP context hydrate requires IContextResolver.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
+        {
+            throw new InvalidOperationException("Access-control HTTP routes require an authorization policy.");
         }
 
         var group = endpoints.MapGroup(options.RoutePrefix);
