@@ -1,3 +1,5 @@
+using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
+
 namespace Mirepoix.AccessControl.Management.Server.Http;
 
 /// <summary>
@@ -8,10 +10,8 @@ public sealed class AccessControlManagementServerHttpOptions
     /// <summary>Gets or sets the shared route prefix.</summary>
     public string RoutePrefix { get; set; } = "/access-control";
 
-    /// <summary>Gets or sets the optional authorization policy applied to every management endpoint.</summary>
-    public string? AuthorizationPolicy { get; set; }
-
     private readonly List<(string Name, string Origin)> _enforcementApps = [];
+    private readonly List<PolicyModel> _pins = [];
 
     internal bool SubjectsEnabled { get; private set; }
     internal bool RolesEnabled { get; private set; }
@@ -22,6 +22,28 @@ public sealed class AccessControlManagementServerHttpOptions
     /// Gets enforcement apps in registration order. Empty when catalog pull and the aggregate GET stay off.
     /// </summary>
     internal IReadOnlyList<(string Name, string Origin)> EnforcementApps => _enforcementApps;
+
+    /// <summary>Gets pins in registration order. Empty when the host did not call <see cref="PinPolicy"/>.</summary>
+    internal IReadOnlyList<PolicyModel> Pins => _pins;
+
+    /// <summary>
+    /// Appends <paramref name="policy"/> so it is part of the effective set and not stored.
+    /// </summary>
+    /// <param name="policy">Allow or deny copied onto reads and stripped from exact replaces.</param>
+    /// <returns>This options instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when another pin already uses the same id (ordinal).</exception>
+    public AccessControlManagementServerHttpOptions PinPolicy(PolicyModel policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        foreach (var existing in _pins)
+        {
+            if (string.Equals(existing.Id, policy.Id, StringComparison.Ordinal))
+                throw new ArgumentException($"Pinned policy '{policy.Id}' is already registered.");
+        }
+
+        _pins.Add(policy);
+        return this;
+    }
 
     /// <summary>Enables subject management endpoints.</summary>
     public AccessControlManagementServerHttpOptions AddSubjects()

@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Mirepoix.AccessControl.Core\Mirepoix.AccessControl.Core.csproj" />
     <ProjectReference Include="..\Mirepoix.AccessControl.Management\Mirepoix.AccessControl.Management.csproj" />
+    <ProjectReference Include="..\Mirepoix.AccessControl\Mirepoix.AccessControl.csproj" />
   </ItemGroup>
 
   <ItemGroup>

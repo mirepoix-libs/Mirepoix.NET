@@ -17,6 +17,7 @@ public sealed class ManagementEndpointMappingTests
             EnvironmentName = "Development",
         });
         builder.Services.AddScoped<ISubjectStore, FakeSubjectStore>();
+        builder.Services.AddSingleton<IAccessChecker>(new ScriptedChecker(AuthorizationResult.Allow));
         builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         using var app = builder.Build();
 
@@ -42,11 +43,13 @@ public sealed class ManagementEndpointMappingTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<ISubjectStore, FakeSubjectStore>();
+        ManagementTestCaller.Register(builder.Services, new ScriptedChecker(AuthorizationResult.Allow));
         builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         await using var app = builder.Build();
+        ManagementTestCaller.Use(app);
         app.MapAccessControlManagement();
         await app.StartAsync();
-        using var client = app.GetTestClient();
+        using var client = ManagementTestCaller.Client(app);
 
         var create = await client.PostAsync("/access-control/subjects/alice", null);
         var setAttribute = await client.PutAsJsonAsync(
@@ -74,11 +77,13 @@ public sealed class ManagementEndpointMappingTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<SodState>();
         builder.Services.AddScoped<ISodConstraintStore, FakeSodConstraintStore>();
+        ManagementTestCaller.Register(builder.Services, new ScriptedChecker(AuthorizationResult.Allow));
         builder.Services.AddAccessControlManagementServerHttp(options => options.AddSod());
         await using var app = builder.Build();
+        ManagementTestCaller.Use(app);
         app.MapAccessControlManagement();
         await app.StartAsync();
-        using var client = app.GetTestClient();
+        using var client = ManagementTestCaller.Client(app);
 
         var response = await client.PostAsJsonAsync(
             "/access-control/sod",
@@ -101,11 +106,13 @@ public sealed class ManagementEndpointMappingTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<RoleState>();
         builder.Services.AddScoped<ISubjectStore, RoleOnlySubjectStore>();
+        ManagementTestCaller.Register(builder.Services, new ScriptedChecker(AuthorizationResult.Allow));
         builder.Services.AddAccessControlManagementServerHttp(options => options.AddSubjects());
         await using var app = builder.Build();
+        ManagementTestCaller.Use(app);
         app.MapAccessControlManagement();
         await app.StartAsync();
-        using var client = app.GetTestClient();
+        using var client = ManagementTestCaller.Client(app);
 
         var assign = await client.PostAsync(
             "/access-control/subjects/library-user/roles/editor",

@@ -19,11 +19,13 @@ public sealed class PolicySetEndpointTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<IPolicySource>(source);
         builder.Services.AddSingleton<IPolicySetEditor, UnusedEditor>();
+        ManagementTestCaller.Register(builder.Services, new ScriptedChecker(AuthorizationResult.Allow));
         builder.Services.AddAccessControlManagementServerHttp(options => options.AddPolicySet());
         await using var app = builder.Build();
+        ManagementTestCaller.Use(app);
         app.MapAccessControlManagement();
         await app.StartAsync();
-        using var client = app.GetTestClient();
+        using var client = ManagementTestCaller.Client(app);
 
         var response = await client.GetAsync("/access-control/policy-set");
 

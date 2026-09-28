@@ -34,22 +34,37 @@ public static class AccessControlManagementServerHttpExtensions
             });
         }
 
+        if (options.Pins.Count > 0)
+        {
+            services.AddAccessControlPinnedPolicies(pins =>
+            {
+                foreach (var pin in options.Pins)
+                    pins.Add(pin);
+            });
+        }
+
         return services;
     }
 
     /// <summary>Maps all enabled management HTTP slices.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when an enabled slice is missing its store, or when <see cref="IAccessChecker"/> is not registered.
+    /// The missing-checker message is "Management HTTP routes require IAccessChecker."
+    /// </exception>
     public static IEndpointRouteBuilder MapAccessControlManagement(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
         var options = endpoints.ServiceProvider.GetRequiredService<AccessControlManagementServerHttpOptions>();
         ValidateSeams(endpoints.ServiceProvider, options);
+        var probe = endpoints.ServiceProvider.GetRequiredService<IServiceProviderIsService>();
+        if (!probe.IsService(typeof(IAccessChecker)))
+        {
+            throw new InvalidOperationException("Management HTTP routes require IAccessChecker.");
+        }
 
         var group = endpoints.MapGroup(options.RoutePrefix);
-        if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
-        {
-            group.RequireAuthorization(options.AuthorizationPolicy);
-        }
+        group.AddEndpointFilter(ManagementAccessFilter.Invoke);
 
         if (options.SubjectsEnabled)
         {
@@ -81,18 +96,18 @@ public static class AccessControlManagementServerHttpExtensions
 
     private static void MapSubjects(RouteGroupBuilder group, string routePrefix)
     {
-        group.MapPost("/subjects/{id}", async (string id, ISubjectStore store, CancellationToken cancellationToken) =>
+        Gate(group.MapPost("/subjects/{id}", async (string id, ISubjectStore store, CancellationToken cancellationToken) =>
         {
             await store.CreateAsync(id, cancellationToken);
             return Results.Created($"{routePrefix}/subjects/{id}", new { id });
-        });
+        }), "access-control:subject:create", "subject", "id");
 
-        group.MapGet("/subjects/{id}", async (string id, ISubjectStore store, CancellationToken cancellationToken) =>
+        Gate(group.MapGet("/subjects/{id}", async (string id, ISubjectStore store, CancellationToken cancellationToken) =>
             await store.ExistsAsync(id, cancellationToken)
                 ? Results.Ok(new { id })
-                : Results.NotFound());
+                : Results.NotFound()), "access-control:subject:read", "subject", "id");
 
-        group.MapDelete("/subjects/{id}", async (string id, ISubjectStore store, CancellationToken cancellationToken) =>
+        Gate(group.MapDelete("/subjects/{id}", async (string id, ISubjectStore store, CancellationToken cancellationToken) =>
         {
             if (!await store.ExistsAsync(id, cancellationToken))
             {
@@ -101,12 +116,12 @@ public static class AccessControlManagementServerHttpExtensions
 
             await store.DeleteAsync(id, cancellationToken);
             return Results.NoContent();
-        });
+        }), "access-control:subject:delete", "subject", "id");
 
-        group.MapGet("/subjects", async (ISubjectStore store, CancellationToken cancellationToken) =>
-            Results.Ok(await store.ListIdsAsync(cancellationToken)));
+        Gate(group.MapGet("/subjects", async (ISubjectStore store, CancellationToken cancellationToken) =>
+            Results.Ok(await store.ListIdsAsync(cancellationToken))), "access-control:subject:list", "subject", null);
 
-        group.MapPut("/subjects/{id}/attributes/{key}", async (
+        Gate(group.MapPut("/subjects/{id}/attributes/{key}", async (
             string id,
             string key,
             JsonElement value,
@@ -120,9 +135,9 @@ public static class AccessControlManagementServerHttpExtensions
 
             await store.SetAttributeAsync(id, key, ToClrValue(value), cancellationToken);
             return Results.NoContent();
-        });
+        }), "access-control:subject:attribute:write", "subject", "id");
 
-        group.MapDelete("/subjects/{id}/attributes/{key}", async (
+        Gate(group.MapDelete("/subjects/{id}/attributes/{key}", async (
             string id,
             string key,
             ISubjectStore store,
@@ -135,9 +150,9 @@ public static class AccessControlManagementServerHttpExtensions
 
             await store.ClearAttributeAsync(id, key, cancellationToken);
             return Results.NoContent();
-        });
+        }), "access-control:subject:attribute:delete", "subject", "id");
 
-        group.MapGet("/subjects/{id}/attributes", async (
+        Gate(group.MapGet("/subjects/{id}/attributes", async (
             string id,
             ISubjectStore store,
             CancellationToken cancellationToken) =>
@@ -148,9 +163,9 @@ public static class AccessControlManagementServerHttpExtensions
             }
 
             return Results.Ok(await store.GetAttributesAsync(id, cancellationToken));
-        });
+        }), "access-control:subject:attribute:read", "subject", "id");
 
-        group.MapPost("/subjects/{id}/roles/{roleId}", async (
+        Gate(group.MapPost("/subjects/{id}/roles/{roleId}", async (
             string id,
             string roleId,
             ISubjectStore store,
@@ -160,9 +175,9 @@ public static class AccessControlManagementServerHttpExtensions
             return result.Outcome == AssignmentOutcome.Assigned
                 ? Results.NoContent()
                 : Results.Conflict(result);
-        });
+        }), "access-control:subject:role:assign", "subject", "id");
 
-        group.MapDelete("/subjects/{id}/roles/{roleId}", async (
+        Gate(group.MapDelete("/subjects/{id}/roles/{roleId}", async (
             string id,
             string roleId,
             ISubjectStore store,
@@ -170,27 +185,27 @@ public static class AccessControlManagementServerHttpExtensions
         {
             await store.RevokeRoleAsync(id, roleId, cancellationToken);
             return Results.NoContent();
-        });
+        }), "access-control:subject:role:revoke", "subject", "id");
 
-        group.MapGet("/subjects/{id}/roles", async (
+        Gate(group.MapGet("/subjects/{id}/roles", async (
             string id,
             ISubjectStore store,
             CancellationToken cancellationToken) =>
-            Results.Ok(await store.GetRolesAsync(id, cancellationToken)));
+            Results.Ok(await store.GetRolesAsync(id, cancellationToken))), "access-control:subject:role:read", "subject", "id");
     }
 
     private static void MapRoles(RouteGroupBuilder group, string routePrefix)
     {
-        group.MapGet("/roles", async (IRoleCatalog catalog, CancellationToken cancellationToken) =>
-            Results.Ok(await catalog.ListAsync(cancellationToken)));
+        Gate(group.MapGet("/roles", async (IRoleCatalog catalog, CancellationToken cancellationToken) =>
+            Results.Ok(await catalog.ListAsync(cancellationToken))), "access-control:role:list", "role", null);
 
-        group.MapPost("/roles", async (Role role, IRoleCatalog catalog, CancellationToken cancellationToken) =>
+        Gate(group.MapPost("/roles", async (Role role, IRoleCatalog catalog, CancellationToken cancellationToken) =>
         {
             await catalog.AddAsync(role, cancellationToken);
             return Results.Created($"{routePrefix}/roles/{role.Id}", role);
-        });
+        }), "access-control:role:create", "role", null);
 
-        group.MapPut("/roles/{id}", async (
+        Gate(group.MapPut("/roles/{id}", async (
             string id,
             Role role,
             IRoleCatalog catalog,
@@ -199,21 +214,21 @@ public static class AccessControlManagementServerHttpExtensions
             var replacement = new Role(id, role.Description);
             await catalog.AddAsync(replacement, cancellationToken);
             return Results.Ok(replacement);
-        });
+        }), "access-control:role:update", "role", "id");
 
-        group.MapDelete("/roles/{id}", async (string id, IRoleCatalog catalog, CancellationToken cancellationToken) =>
+        Gate(group.MapDelete("/roles/{id}", async (string id, IRoleCatalog catalog, CancellationToken cancellationToken) =>
         {
             await catalog.RemoveAsync(id, cancellationToken);
             return Results.NoContent();
-        });
+        }), "access-control:role:delete", "role", "id");
     }
 
     private static void MapSod(RouteGroupBuilder group, string routePrefix)
     {
-        group.MapGet("/sod", async (ISodConstraintStore store, CancellationToken cancellationToken) =>
-            Results.Ok(await store.ListAsync(cancellationToken)));
+        Gate(group.MapGet("/sod", async (ISodConstraintStore store, CancellationToken cancellationToken) =>
+            Results.Ok(await store.ListAsync(cancellationToken))), "access-control:sod:list", "sod", null);
 
-        group.MapPost("/sod", async (
+        Gate(group.MapPost("/sod", async (
             SodConstraintRequest request,
             ISodConstraintStore store,
             CancellationToken cancellationToken) =>
@@ -221,9 +236,9 @@ public static class AccessControlManagementServerHttpExtensions
             var constraint = request.ToConstraint();
             await store.AddAsync(constraint, cancellationToken);
             return Results.Created($"{routePrefix}/sod/{constraint.Id}", constraint);
-        });
+        }), "access-control:sod:create", "sod", null);
 
-        group.MapPut("/sod/{id}", async (
+        Gate(group.MapPut("/sod/{id}", async (
             string id,
             SodConstraintRequest request,
             ISodConstraintStore store,
@@ -232,27 +247,27 @@ public static class AccessControlManagementServerHttpExtensions
             var replacement = request.ToConstraint(id);
             await store.AddAsync(replacement, cancellationToken);
             return Results.Ok(replacement);
-        });
+        }), "access-control:sod:update", "sod", "id");
 
-        group.MapDelete("/sod/{id}", async (
+        Gate(group.MapDelete("/sod/{id}", async (
             string id,
             ISodConstraintStore store,
             CancellationToken cancellationToken) =>
         {
             await store.RemoveAsync(id, cancellationToken);
             return Results.NoContent();
-        });
+        }), "access-control:sod:delete", "sod", "id");
     }
 
     private static void MapPolicySet(RouteGroupBuilder group)
     {
-        group.MapGet("/policy-set", async (IPolicySource source, CancellationToken cancellationToken) =>
+        Gate(group.MapGet("/policy-set", async (IPolicySource source, CancellationToken cancellationToken) =>
         {
             var policySet = await source.GetPolicySetAsync(cancellationToken);
             return Results.Text(PolicySerializers.ToJson(policySet), "application/json");
-        });
+        }), "access-control:policy-set:read", "", null);
 
-        group.MapPut("/policy-set", async (
+        Gate(group.MapPut("/policy-set", async (
             HttpRequest request,
             IPolicySetEditor editor,
             CancellationToken cancellationToken) =>
@@ -291,12 +306,12 @@ public static class AccessControlManagementServerHttpExtensions
             }
 
             return Results.NoContent();
-        });
+        }), "access-control:policy-set:replace", "", null);
     }
 
     private static void MapOperations(RouteGroupBuilder group)
     {
-        group.MapGet("/operations", async (
+        Gate(group.MapGet("/operations", async (
             IEnforcementCatalogClient client,
             OperationCatalogSnapshot snapshot,
             CancellationToken cancellationToken) =>
@@ -314,8 +329,15 @@ public static class AccessControlManagementServerHttpExtensions
                 }),
                 failedApps = pull.FailedApps,
             });
-        });
+        }), "access-control:operations:read", "", null);
     }
+
+    private static RouteHandlerBuilder Gate(
+        RouteHandlerBuilder route,
+        string operation,
+        string resourceType,
+        string? idRouteKey) =>
+        route.WithMetadata(new ManagementRouteAccess(operation, resourceType, idRouteKey));
 
     private static object? ToClrValue(JsonElement value) =>
         value.ValueKind switch

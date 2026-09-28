@@ -21,7 +21,7 @@ public sealed class OperationCatalogEndpointTests
         var editor = new RecordingEditor();
         await using var admin = await StartAdminAsync(editor, billing, ("billing", BillingOrigin));
 
-        using var client = admin.GetTestClient();
+        using var client = ManagementTestCaller.Client(admin);
         var response = await client.GetAsync("/access-control/operations");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -40,7 +40,7 @@ public sealed class OperationCatalogEndpointTests
         var editor = new RecordingEditor();
         await using var admin = await StartAdminAsync(editor, billing, ("billing", BillingOrigin));
 
-        using var client = admin.GetTestClient();
+        using var client = ManagementTestCaller.Client(admin);
         var response = await PutPolicyAsync(client, "invoice:post");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -55,7 +55,7 @@ public sealed class OperationCatalogEndpointTests
         await using var billing = await StartBillingAsync();
         var seedEditor = new RecordingEditor();
         await using var seed = await StartAdminAsync(seedEditor, billing, ("billing", BillingOrigin));
-        using (var seedClient = seed.GetTestClient())
+        using (var seedClient = ManagementTestCaller.Client(seed))
         {
             var seeded = await PutPolicyAsync(seedClient, "invoice:post");
             Assert.Equal(HttpStatusCode.NoContent, seeded.StatusCode);
@@ -69,7 +69,7 @@ public sealed class OperationCatalogEndpointTests
             [("billing", BillingOrigin), ("invoices", DeadOrigin)],
             snapshot);
 
-        using var client = admin.GetTestClient();
+        using var client = ManagementTestCaller.Client(admin);
         var response = await PutPolicyAsync(client, "invoice:post");
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
@@ -85,7 +85,7 @@ public sealed class OperationCatalogEndpointTests
         var editor = new RecordingEditor();
         await using var admin = await StartAdminAsync(editor, billing, ("invoices", DeadOrigin));
 
-        using var client = admin.GetTestClient();
+        using var client = ManagementTestCaller.Client(admin);
         var response = await PutPolicyAsync(client, "invoice:post");
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -99,7 +99,7 @@ public sealed class OperationCatalogEndpointTests
         var editor = new RecordingEditor();
         await using var admin = await StartAdminAsync(editor, billing, ("billing", BillingOrigin));
 
-        using var client = admin.GetTestClient();
+        using var client = ManagementTestCaller.Client(admin);
         var response = await PutPolicyAsync(client, "doc:read");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -139,6 +139,7 @@ public sealed class OperationCatalogEndpointTests
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<IPolicySetEditor>(editor);
         builder.Services.AddSingleton<IPolicySource, UnusedPolicySource>();
+        ManagementTestCaller.Register(builder.Services, new ScriptedChecker(AuthorizationResult.Allow));
         builder.Services.AddAccessControlManagementServerHttp(options =>
         {
             options.AddPolicySet();
@@ -152,6 +153,7 @@ public sealed class OperationCatalogEndpointTests
             .ConfigurePrimaryHttpMessageHandler(() => new OriginRouter(billing.GetTestServer().CreateHandler()));
 
         var app = builder.Build();
+        ManagementTestCaller.Use(app);
         app.MapAccessControlManagement();
         await app.StartAsync();
         return app;
