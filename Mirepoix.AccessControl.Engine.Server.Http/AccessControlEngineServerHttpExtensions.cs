@@ -26,6 +26,11 @@ public static class AccessControlEngineServerHttpExtensions
     }
 
     /// <summary>Maps <c>POST {prefix}/check</c> to the registered <see cref="IAccessChecker"/>.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <see cref="IAccessChecker"/> is not registered, or when
+    /// <see cref="AccessControlEngineServerHttpOptions.AuthorizationPolicy"/> is null or white space.
+    /// The missing-policy message is "Access-control HTTP routes require an authorization policy."
+    /// </exception>
     public static IEndpointRouteBuilder MapAccessControlEngine(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -36,6 +41,11 @@ public static class AccessControlEngineServerHttpExtensions
         {
             throw new InvalidOperationException(
                 "Engine HTTP check requires IAccessChecker. Register LocalAccessChecker via AddAccessControl or register your own.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
+        {
+            throw new InvalidOperationException("Access-control HTTP routes require an authorization policy.");
         }
 
         var group = endpoints.MapGroup(options.RoutePrefix);
