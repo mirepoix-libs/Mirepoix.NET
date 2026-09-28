@@ -11,6 +11,18 @@ public class PolicyTests
     }
 
     [Fact]
+    public void Policy_with_expression_rejects_empty_atoms()
+    {
+        var policy = new Policy(
+            "p1",
+            AuthorizationResult.Allow,
+            null,
+            new IAtom[] { new RoleMembershipAtom(new[] { "EDITOR" }) });
+
+        Assert.Throws<ArgumentException>(() => policy with { Atoms = Array.Empty<IAtom>() });
+    }
+
+    [Fact]
     public void Policy_accepts_at_least_one_atom()
     {
         var atoms = new IAtom[] { new RoleMembershipAtom(new[] { "EDITOR" }) };

@@ -55,6 +55,9 @@ public sealed class Authorizer
 
     private static bool AllAtomsSatisfied(IReadOnlyList<IAtom> atoms, AuthorizationBundle bundle)
     {
+        if (atoms.Count == 0) // reject empty atom list
+            return false;
+
         foreach (var atom in atoms)
         {
             if (!atom.IsSatisfied(bundle))

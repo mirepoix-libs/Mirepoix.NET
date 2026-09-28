@@ -187,6 +187,48 @@ public class AtomTests
     }
 
     [Fact]
+    public void AttributeValueAtom_orders_numeric_strings_as_numbers()
+    {
+        Assert.False(AttributeValueAtom.Compare("9", ComparisonOperator.GreaterThanOrEqual, 10));
+        Assert.False(AttributeValueAtom.Compare("9", ComparisonOperator.GreaterThanOrEqual, "10"));
+        Assert.True(AttributeValueAtom.Compare("10", ComparisonOperator.GreaterThan, "9"));
+        Assert.False(AttributeValueAtom.Compare("100", ComparisonOperator.LessThanOrEqual, "50"));
+    }
+
+    [Fact]
+    public void AttributeValueAtom_orders_non_numeric_strings_ordinally()
+    {
+        Assert.True(AttributeValueAtom.Compare("b", ComparisonOperator.GreaterThan, "a"));
+        Assert.False(AttributeValueAtom.Compare("a", ComparisonOperator.GreaterThan, "9"));
+    }
+
+    [Fact]
+    public void AttributeValueAtom_does_not_treat_distinct_date_strings_as_equal()
+    {
+        Assert.False(AttributeValueAtom.Compare(
+            "2026-09-10T12:00:00+00:00",
+            ComparisonOperator.Equals,
+            "2026-09-10T20:00:00+08:00"));
+    }
+
+    [Fact]
+    public void AttributeValueAtom_unspecified_datetime_uses_clock_time_as_utc()
+    {
+        var clock = new DateTime(2026, 9, 10, 12, 0, 0, DateTimeKind.Unspecified);
+        var utc = new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
+        Assert.True(AttributeValueAtom.Compare(clock, ComparisonOperator.Equals, utc));
+    }
+
+    [Fact]
+    public void AttributeValueAtom_distinguishes_large_integers()
+    {
+        const long smaller = 9007199254740992L;
+        const long larger = 9007199254740993L;
+        Assert.False(AttributeValueAtom.Compare(smaller, ComparisonOperator.Equals, larger));
+        Assert.True(AttributeValueAtom.Compare(larger, ComparisonOperator.GreaterThan, smaller));
+    }
+
+    [Fact]
     public void AttributeValueAtom_less_than_datetime_vs_iso_string()
     {
         var cutoff = new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
