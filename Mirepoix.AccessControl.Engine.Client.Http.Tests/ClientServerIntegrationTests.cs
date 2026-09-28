@@ -4,9 +4,14 @@ using Mirepoix.AccessControl.Evaluation;
 using Mirepoix.AccessControl.Policy;
 using Mirepoix.AccessControl.Providers;
 using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 
 namespace Mirepoix.AccessControl.Engine.Client.Http.Tests;
 
@@ -57,8 +62,11 @@ public sealed class ClientServerIntegrationTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(checker);
-        builder.Services.AddAccessControlEngineServerHttp(_ => { });
+        UseCallerPolicy(builder);
+        builder.Services.AddAccessControlEngineServerHttp(options => options.AuthorizationPolicy = "Caller");
         var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapAccessControlEngine();
         await app.StartAsync();
         return app;
@@ -70,6 +78,28 @@ public sealed class ClientServerIntegrationTests
             new Resource("doc", "1", new Dictionary<string, object?>()),
             Operation.Parse("doc:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
+
+    private static void UseCallerPolicy(WebApplicationBuilder builder)
+    {
+        builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, AllowTestHandler>("Test", _ => { });
+        builder.Services.AddAuthorization(options => options.AddPolicy("Caller", policy =>
+        {
+            policy.AddAuthenticationSchemes("Test");
+            policy.RequireAuthenticatedUser();
+        }));
+    }
+
+    private sealed class AllowTestHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+    {
+        public AllowTestHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+            : base(options, logger, encoder) { }
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "test")], "Test");
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), "Test")));
+        }
+    }
 
     private sealed class PassThroughHydrator : IBundleHydrator
     {

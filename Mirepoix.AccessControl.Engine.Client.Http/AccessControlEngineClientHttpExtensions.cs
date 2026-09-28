@@ -13,7 +13,7 @@ public static class AccessControlEngineClientHttpExtensions
 
     /// <summary>
     /// Registers <see cref="HttpAccessChecker"/> as <see cref="IAccessChecker"/> backed by a named
-    /// <see cref="HttpClient"/> pointed at the PDP.
+    /// <see cref="HttpClient"/> pointed at the PDP. The named client does not follow redirects.
     /// </summary>
     /// <param name="services">Service collection.</param>
     /// <param name="configure">Required; must set <see cref="AccessControlEngineClientHttpOptions.BaseAddress"/>.</param>
@@ -39,6 +39,9 @@ public static class AccessControlEngineClientHttpExtensions
             var resolvedOptions = serviceProvider.GetRequiredService<AccessControlEngineClientHttpOptions>();
             client.BaseAddress = resolvedOptions.BaseAddress;
             resolvedOptions.ConfigureHttpClient?.Invoke(client);
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
         });
 
         services.RemoveAll<IAccessChecker>();

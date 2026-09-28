@@ -36,6 +36,57 @@ public sealed class HttpAccessCheckerTests
         Assert.Equal("v1", result.PolicySetVersion);
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"policyHits\":[]}")]
+    [InlineData("{\"result\":\"Allow\"}")]
+    [InlineData("{\"status\":\"Success\"}")]
+    [InlineData("{\"result\":null,\"status\":\"Success\"}")]
+    [InlineData("{\"Result\":\"Allow\",\"Status\":\"Success\"}")]
+    public async Task CheckAsync_Throws_WhenResultOrStatusMissing(string json)
+    {
+        var http = new HttpClient(new StubHandler(_ => RawJson(json)))
+        {
+            BaseAddress = new Uri("http://localhost/"),
+        };
+        var checker = new HttpAccessChecker(http);
+
+        var exception = await Assert.ThrowsAsync<JsonException>(() =>
+            checker.CheckAsync(SampleRequest(), CancellationToken.None));
+
+        Assert.Equal("PDP response must include result and status.", exception.Message);
+    }
+
+    [Fact]
+    public async Task CheckAsync_MapsExplicitDeny()
+    {
+        var http = new HttpClient(new StubHandler(_ => RawJson("{\"result\":\"Deny\",\"status\":\"Defaulted\",\"policyHits\":[]}")))
+        {
+            BaseAddress = new Uri("http://localhost/"),
+        };
+        var checker = new HttpAccessChecker(http);
+
+        var decision = await checker.CheckAsync(SampleRequest(), CancellationToken.None);
+
+        Assert.Equal(AuthorizationResult.Deny, decision.Result);
+        Assert.Equal(DecisionStatus.Defaulted, decision.Status);
+    }
+
+    [Fact]
+    public async Task CheckAsync_MapsNumericZeroResultAsAllow()
+    {
+        var http = new HttpClient(new StubHandler(_ => RawJson("{\"result\":0,\"status\":0,\"policyHits\":[]}")))
+        {
+            BaseAddress = new Uri("http://localhost/"),
+        };
+        var checker = new HttpAccessChecker(http);
+
+        var decision = await checker.CheckAsync(SampleRequest(), CancellationToken.None);
+
+        Assert.Equal(AuthorizationResult.Allow, decision.Result);
+        Assert.Equal(DecisionStatus.Success, decision.Status);
+    }
+
     private static AuthorizationRequest SampleRequest() =>
         new(
             new Subject("alice", new HashSet<string> { "editor" }, new Dictionary<string, object?> { ["dept"] = "eng" }),
@@ -54,6 +105,12 @@ public sealed class HttpAccessCheckerTests
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
     }
+
+    private static HttpResponseMessage RawJson(string json) =>
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
 
     private sealed class StubHandler : HttpMessageHandler
     {

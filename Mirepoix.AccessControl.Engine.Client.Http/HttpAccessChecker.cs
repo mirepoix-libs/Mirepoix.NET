@@ -37,10 +37,18 @@ public sealed class HttpAccessChecker : IAccessChecker
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var decisionDto = await JsonSerializer.DeserializeAsync<AccessDecisionDto>(
-            stream,
-            AccessControlHttpJson.DefaultOptions,
-            cancellationToken).ConfigureAwait(false)
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("result", out var result)
+            || !root.TryGetProperty("status", out var status)
+            || result.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
+            || status.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            throw new JsonException("PDP response must include result and status.");
+        }
+
+        var decisionDto = root.Deserialize<AccessDecisionDto>(AccessControlHttpJson.DefaultOptions)
             ?? throw new InvalidOperationException("Empty PDP response.");
 
         return decisionDto.ToDomain();
