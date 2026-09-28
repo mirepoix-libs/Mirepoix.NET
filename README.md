@@ -1,4 +1,6 @@
-![mirepoix logo](img/mirepoix-logo.png)
+<p align="center">
+  <img src="img/mirepoix-logo.png" alt="Mirepoix" width="280"/>
+</p>
 
 # Mirepoix.AccessControl
 
