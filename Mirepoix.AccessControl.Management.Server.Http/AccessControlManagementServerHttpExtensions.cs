@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Mirepoix.AccessControl.Management;
 using Mirepoix.AccessControl.Policy;
+using Mirepoix.AccessControl.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -245,6 +246,12 @@ public static class AccessControlManagementServerHttpExtensions
 
     private static void MapPolicySet(RouteGroupBuilder group)
     {
+        group.MapGet("/policy-set", async (IPolicySource source, CancellationToken cancellationToken) =>
+        {
+            var policySet = await source.GetPolicySetAsync(cancellationToken);
+            return Results.Text(PolicySerializers.ToJson(policySet), "application/json");
+        });
+
         group.MapPut("/policy-set", async (
             HttpRequest request,
             IPolicySetEditor editor,
@@ -352,6 +359,12 @@ public static class AccessControlManagementServerHttpExtensions
         {
             throw new InvalidOperationException(
                 "Policy set management HTTP slice requires IPolicySetEditor. Call AddAccessControlManagement for native EF storage or register your own IPolicySetEditor.");
+        }
+
+        if (options.PolicySetEnabled && !serviceProbe.IsService(typeof(IPolicySource)))
+        {
+            throw new InvalidOperationException(
+                "Policy set management HTTP slice requires IPolicySource. Register your own IPolicySource or call AddAccessControlProviders for the policy source.");
         }
     }
 }

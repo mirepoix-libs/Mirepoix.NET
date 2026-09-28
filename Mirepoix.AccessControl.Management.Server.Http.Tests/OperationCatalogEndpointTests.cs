@@ -4,6 +4,7 @@ using System.Text.Json;
 using Mirepoix.AccessControl.Authorization.AspNetCore;
 using Mirepoix.AccessControl.Management;
 using Mirepoix.AccessControl.Policy;
+using Mirepoix.AccessControl.Providers;
 using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -137,6 +138,7 @@ public sealed class OperationCatalogEndpointTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<IPolicySetEditor>(editor);
+        builder.Services.AddSingleton<IPolicySource, UnusedPolicySource>();
         builder.Services.AddAccessControlManagementServerHttp(options =>
         {
             options.AddPolicySet();
@@ -164,6 +166,12 @@ public sealed class OperationCatalogEndpointTests
         return client.PutAsync(
             "/access-control/policy-set",
             new StringContent(json, Encoding.UTF8, "application/json"));
+    }
+
+    private sealed class UnusedPolicySource : IPolicySource
+    {
+        public Task<PolicySet> GetPolicySetAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Catalog tests do not read the policy set.");
     }
 
     private sealed class RecordingEditor : IPolicySetEditor

@@ -44,7 +44,7 @@ public sealed class AccessControlManagementServerHttpOptions
         return this;
     }
 
-    /// <summary>Enables policy-set replacement.</summary>
+    /// <summary>Enables policy-set read and replacement.</summary>
     public AccessControlManagementServerHttpOptions AddPolicySet()
     {
         PolicySetEnabled = true;
