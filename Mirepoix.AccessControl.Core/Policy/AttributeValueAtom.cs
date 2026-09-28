@@ -8,8 +8,10 @@ namespace Mirepoix.AccessControl.Policy;
 /// For <see cref="AttributeTarget.Context"/>, resolution order is:
 /// <see cref="AccessContext.Time"/> when the key is <c>"time"</c> (ordinal ignore case) and Time is set,
 /// then <see cref="AccessContext.Values"/>, then <see cref="AccessContext.Claims"/> (Values win when both contain the key).
-/// Comparison coerces JSON-round-tripped values: ISO-8601 strings to
-/// <see cref="DateTimeOffset"/>, and numeric widening via <see cref="Convert.ToDouble(object, IFormatProvider)"/>.
+/// Integral values and numeric strings compare as <see cref="decimal"/>.
+/// <see cref="float"/> and <see cref="double"/> widen through <see cref="Convert.ToDouble(object, IFormatProvider)"/>.
+/// A string compares as <see cref="DateTimeOffset"/> only against a <see cref="DateTime"/> or <see cref="DateTimeOffset"/>.
+/// <see cref="DateTime"/> uses its clock time as UTC and does not apply the host offset.
 /// Missing attribute: satisfied only for <see cref="ComparisonOperator.NotEquals"/>.
 /// </summary>
 public sealed class AttributeValueAtom : IAtom
@@ -121,8 +123,11 @@ public sealed class AttributeValueAtom : IAtom
         if (Equals(actual, expected))
             return true;
 
-        if (TryToDateTimeOffset(actual, out var actualTime) && TryToDateTimeOffset(expected, out var expectedTime))
+        if (TryPairTimes(actual, expected, out var actualTime, out var expectedTime))
             return actualTime.Equals(expectedTime);
+
+        if (TryToDecimal(actual, out var actualDecimal) && TryToDecimal(expected, out var expectedDecimal))
+            return actualDecimal == expectedDecimal;
 
         if (TryToDouble(actual, out var actualNumber) && TryToDouble(expected, out var expectedNumber))
             return actualNumber == expectedNumber;
@@ -164,66 +169,69 @@ public sealed class AttributeValueAtom : IAtom
 
     private static bool TryCompare(object actual, object expected, out int cmp)
     {
+        if (TryToDecimal(actual, out var actualDecimal) && TryToDecimal(expected, out var expectedDecimal))
+        {
+            cmp = actualDecimal.CompareTo(expectedDecimal);
+            return true;
+        }
+
         if (TryToDouble(actual, out var actualNumber) && TryToDouble(expected, out var expectedNumber))
         {
             cmp = actualNumber.CompareTo(expectedNumber);
             return true;
         }
 
-        if (TryToDateTimeOffset(actual, out var actualTime) && TryToDateTimeOffset(expected, out var expectedTime))
+        if (IsNumeric(actual) || IsNumeric(expected))
+        {
+            cmp = 0;
+            return false;
+        }
+
+        if (TryPairTimes(actual, expected, out var actualTime, out var expectedTime))
         {
             cmp = actualTime.CompareTo(expectedTime);
             return true;
         }
 
-        if (actual is not IComparable comparable)
+        if (actual is string actualText && expected is string expectedText)
         {
-            cmp = 0;
-            return false;
-        }
-
-        try
-        {
-            cmp = comparable.CompareTo(expected);
+            cmp = string.CompareOrdinal(actualText, expectedText);
             return true;
-        }
-        catch (ArgumentException)
-        {
-        }
-        catch (InvalidCastException)
-        {
-            cmp = 0;
-            return false;
-        }
-
-        try
-        {
-            var converted = Convert.ChangeType(expected, actual.GetType(), CultureInfo.InvariantCulture);
-            cmp = comparable.CompareTo(converted);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-        }
-        catch (InvalidCastException)
-        {
-        }
-        catch (FormatException)
-        {
-        }
-        catch (OverflowException)
-        {
         }
 
         cmp = 0;
         return false;
     }
 
+    private static bool IsNumeric(object value) =>
+        TryToDecimal(value, out _) || value is float or double;
+
+    private static bool TryToDecimal(object? value, out decimal number)
+    {
+        switch (value)
+        {
+            case sbyte or byte or short or ushort or int or uint or long or ulong or decimal:
+                number = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                return true;
+            case string text when decimal.TryParse(
+                text,
+                NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent,
+                CultureInfo.InvariantCulture,
+                out var parsed):
+                number = parsed;
+                return true;
+            default:
+                number = default;
+                return false;
+        }
+    }
+
     private static bool TryToDouble(object? value, out double number)
     {
         switch (value)
         {
-            case sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal:
+            case float or double:
+            case sbyte or byte or short or ushort or int or uint or long or ulong or decimal:
                 number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
                 return true;
             default:
@@ -232,7 +240,24 @@ public sealed class AttributeValueAtom : IAtom
         }
     }
 
-    private static bool TryToDateTimeOffset(object? value, out DateTimeOffset time)
+    private static bool TryPairTimes(
+        object? actual,
+        object? expected,
+        out DateTimeOffset actualTime,
+        out DateTimeOffset expectedTime)
+    {
+        actualTime = default;
+        expectedTime = default;
+        var actualIsTime = actual is DateTime or DateTimeOffset;
+        var expectedIsTime = expected is DateTime or DateTimeOffset;
+        if (!actualIsTime && !expectedIsTime)
+            return false;
+
+        return TryToDateTimeOffset(actual, allowString: actual is string, out actualTime)
+            && TryToDateTimeOffset(expected, allowString: expected is string, out expectedTime);
+    }
+
+    private static bool TryToDateTimeOffset(object? value, bool allowString, out DateTimeOffset time)
     {
         switch (value)
         {
@@ -240,18 +265,10 @@ public sealed class AttributeValueAtom : IAtom
                 time = dto;
                 return true;
             case DateTime dt:
-                try
-                {
-                    time = new DateTimeOffset(dt);
-                    return true;
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    time = default;
-                    return false;
-                }
-            case string s when DateTimeOffset.TryParse(
-                s,
+                time = new DateTimeOffset(DateTime.SpecifyKind(dt, DateTimeKind.Utc));
+                return true;
+            case string text when allowString && DateTimeOffset.TryParse(
+                text,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.RoundtripKind,
                 out var parsed):

@@ -16,9 +16,6 @@ public sealed record Policy
     /// <exception cref="ArgumentException">Thrown when <paramref name="atoms"/> has count 0.</exception>
     public Policy(string id, AuthorizationResult effect, string? description, IReadOnlyList<IAtom> atoms)
     {
-        if (atoms.Count == 0)
-            throw new ArgumentException("Policy must have at least one atom.", nameof(atoms));
-
         Id = id;
         Effect = effect;
         Description = description;
@@ -35,5 +32,17 @@ public sealed record Policy
     public string? Description { get; init; }
 
     /// <summary>Lists atoms evaluated with AND semantics (all must be satisfied).</summary>
-    public IReadOnlyList<IAtom> Atoms { get; init; }
+    public IReadOnlyList<IAtom> Atoms
+    {
+        get => _atoms;
+        init
+        {
+            if (value.Count == 0)
+                throw new ArgumentException("Policy must have at least one atom.", nameof(Atoms));
+
+            _atoms = value;
+        }
+    }
+
+    private readonly IReadOnlyList<IAtom> _atoms = [];
 }
