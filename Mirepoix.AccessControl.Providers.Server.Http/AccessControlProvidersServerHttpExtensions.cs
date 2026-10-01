@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Mirepoix.AccessControl.Providers.Server.Http;
 
@@ -89,6 +90,7 @@ public static class AccessControlProvidersServerHttpExtensions
                 }
 
                 return await HydrateAsync(
+                    request.HttpContext,
                     () => body.Value!.ToDomain(),
                     partial => resolver.HydrateAsync(partial, cancellationToken),
                     SubjectDto.FromDomain).ConfigureAwait(false);
@@ -109,6 +111,7 @@ public static class AccessControlProvidersServerHttpExtensions
                 }
 
                 return await HydrateAsync(
+                    request.HttpContext,
                     () => body.Value!.ToDomain(),
                     partial => hydrator.HydrateAsync(partial, cancellationToken),
                     ResourceDto.FromDomain).ConfigureAwait(false);
@@ -129,6 +132,7 @@ public static class AccessControlProvidersServerHttpExtensions
                 }
 
                 return await HydrateAsync(
+                    request.HttpContext,
                     () => body.Value!.ToDomain(),
                     partial => resolver.HydrateAsync(partial, cancellationToken),
                     AccessContextDto.FromDomain).ConfigureAwait(false);
@@ -139,6 +143,7 @@ public static class AccessControlProvidersServerHttpExtensions
     }
 
     private static async Task<IResult> HydrateAsync<TDomain, TDto>(
+        HttpContext http,
         Func<TDomain> toDomain,
         Func<TDomain, Task<TDomain>> hydrate,
         Func<TDomain, TDto> toDto)
@@ -150,7 +155,8 @@ public static class AccessControlProvidersServerHttpExtensions
         }
         catch (Exception exception) when (exception is ArgumentException or JsonException)
         {
-            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+            LogHydrateFailure(http, exception);
+            return Results.Problem("The hydrate request is invalid.", statusCode: StatusCodes.Status400BadRequest);
         }
 
         try
@@ -160,12 +166,21 @@ public static class AccessControlProvidersServerHttpExtensions
         }
         catch (KeyNotFoundException exception)
         {
-            return Results.Problem(exception.Message, statusCode: StatusCodes.Status404NotFound);
+            LogHydrateFailure(http, exception);
+            return Results.Problem("Not found.", statusCode: StatusCodes.Status404NotFound);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return Results.Problem(exception.Message, statusCode: StatusCodes.Status500InternalServerError);
+            LogHydrateFailure(http, exception);
+            return Results.Problem("Hydration failed.", statusCode: StatusCodes.Status500InternalServerError);
         }
+    }
+
+    private static void LogHydrateFailure(HttpContext http, Exception exception)
+    {
+        var logger = http.RequestServices.GetService<ILoggerFactory>()
+            ?.CreateLogger("Mirepoix.AccessControl.Providers.Server.Http");
+        logger?.LogError(exception, "Access-control hydrate failed.");
     }
 
     private static async Task<(T? Value, IResult? Problem)> ReadBodyAsync<T>(
@@ -183,7 +198,10 @@ public static class AccessControlProvidersServerHttpExtensions
         }
         catch (JsonException exception)
         {
-            return (null, Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest));
+            var logger = request.HttpContext.RequestServices.GetService<ILoggerFactory>()
+                ?.CreateLogger("Mirepoix.AccessControl.Providers.Server.Http");
+            logger?.LogError(exception, "Access-control hydrate failed.");
+            return (null, Results.Problem("The hydrate request is invalid.", statusCode: StatusCodes.Status400BadRequest));
         }
 
         if (body is null)

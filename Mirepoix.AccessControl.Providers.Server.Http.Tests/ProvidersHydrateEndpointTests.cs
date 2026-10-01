@@ -81,6 +81,68 @@ public sealed class ProvidersHydrateEndpointTests
             AccessControlHttpJson.DefaultOptions);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("missing", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SubjectHydrate_StoreFailure_DoesNotReturnExceptionText()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<ISubjectResolver>(new ThrowingResolver());
+        UseCallerPolicy(builder);
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddSubject();
+            options.AuthorizationPolicy = "Caller";
+        });
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapAccessControlProviders();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            AccessControlHttpRoutes.AbsoluteProvidersSubjectHydratePath,
+            new { id = "alice", roles = Array.Empty<string>(), attributes = new { } },
+            AccessControlHttpJson.DefaultOptions);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Hydration failed.", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("sql.internal", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SubjectHydrate_MalformedJson_DoesNotReturnParserText()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<ISubjectResolver>(
+            new InMemorySubjectResolver(new Dictionary<string, Subject>()));
+        UseCallerPolicy(builder);
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddSubject();
+            options.AuthorizationPolicy = "Caller";
+        });
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapAccessControlProviders();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        var response = await client.PostAsync(
+            AccessControlHttpRoutes.AbsoluteProvidersSubjectHydratePath,
+            new StringContent("{", System.Text.Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("The hydrate request is invalid.", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Path", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -178,6 +240,12 @@ public sealed class ProvidersHydrateEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.DoesNotContain("editor", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class ThrowingResolver : ISubjectResolver
+    {
+        public Task<Subject> HydrateAsync(Subject partial, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Login failed for user 'sa' on server 'sql.internal'.");
     }
 
     private static void UseCallerPolicy(WebApplicationBuilder builder)
