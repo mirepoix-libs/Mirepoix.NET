@@ -79,13 +79,19 @@ public class SchemaV3Tests
         var resourceNames = AccessControlSchemaDialectMap.ResourceNames(dialect);
         var scripts = AccessControlSchemaScripts.Load(dialect);
 
-        Assert.Equal(5, resourceNames.Count);
-        Assert.Equal(5, scripts.Count);
+        Assert.Equal(dialect == AccessControlSchemaDialect.SqlServer ? 6 : 5, resourceNames.Count);
+        Assert.Equal(dialect == AccessControlSchemaDialect.SqlServer ? 6 : 5, scripts.Count);
         Assert.EndsWith("001_init.sql", resourceNames[0], StringComparison.Ordinal);
         Assert.EndsWith("001b_subject_roles.sql", resourceNames[1], StringComparison.Ordinal);
         Assert.EndsWith("002_management.sql", resourceNames[2], StringComparison.Ordinal);
         Assert.EndsWith("002b_subjects.sql", resourceNames[3], StringComparison.Ordinal);
         Assert.EndsWith("003_drop_resource_attribute.sql", resourceNames[4], StringComparison.Ordinal);
+        if (dialect == AccessControlSchemaDialect.SqlServer)
+        {
+            Assert.EndsWith("004_binary_keys.sql", resourceNames[5], StringComparison.Ordinal);
+            Assert.Contains("Latin1_General_BIN2", scripts[1], StringComparison.Ordinal);
+            Assert.Contains("Latin1_General_BIN2", scripts[5], StringComparison.Ordinal);
+        }
         Assert.All(scripts, script => Assert.False(string.IsNullOrWhiteSpace(script)));
         Assert.Contains(AccessControlSchema.PolicySetTable, scripts[0], StringComparison.Ordinal);
         Assert.DoesNotContain("ac_resource_attribute", scripts[0], StringComparison.Ordinal);
@@ -107,7 +113,9 @@ public class SchemaV3Tests
         foreach (var layout in Enum.GetValues<SubjectStorageLayout>())
         {
             Assert.EndsWith(
-                "003_drop_resource_attribute.sql",
+                dialect == AccessControlSchemaDialect.SqlServer
+                    ? "004_binary_keys.sql"
+                    : "003_drop_resource_attribute.sql",
                 AccessControlSchemaDialectMap.ResourceNames(dialect, layout)[^1],
                 StringComparison.Ordinal);
         }

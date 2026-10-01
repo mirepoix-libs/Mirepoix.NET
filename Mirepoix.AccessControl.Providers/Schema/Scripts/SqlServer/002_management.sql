@@ -2,7 +2,7 @@ IF OBJECT_ID(N'dbo.ac_role', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ac_role
     (
-        role_id     NVARCHAR(256) NOT NULL CONSTRAINT PK_ac_role PRIMARY KEY,
+        role_id     NVARCHAR(256) COLLATE Latin1_General_BIN2 NOT NULL CONSTRAINT PK_ac_role PRIMARY KEY,
         description NVARCHAR(MAX) NULL
     );
 END
@@ -12,7 +12,7 @@ IF OBJECT_ID(N'dbo.ac_sod_constraint', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ac_sod_constraint
     (
-        constraint_id NVARCHAR(256) NOT NULL CONSTRAINT PK_ac_sod_constraint PRIMARY KEY
+        constraint_id NVARCHAR(256) COLLATE Latin1_General_BIN2 NOT NULL CONSTRAINT PK_ac_sod_constraint PRIMARY KEY
     );
 END
 GO
@@ -21,8 +21,8 @@ IF OBJECT_ID(N'dbo.ac_sod_constraint_role', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ac_sod_constraint_role
     (
-        constraint_id NVARCHAR(256) NOT NULL,
-        role_id       NVARCHAR(256) NOT NULL,
+        constraint_id NVARCHAR(256) COLLATE Latin1_General_BIN2 NOT NULL,
+        role_id       NVARCHAR(256) COLLATE Latin1_General_BIN2 NOT NULL,
         CONSTRAINT PK_ac_sod_constraint_role PRIMARY KEY (constraint_id, role_id),
         CONSTRAINT FK_ac_sod_constraint_role_constraint
             FOREIGN KEY (constraint_id)

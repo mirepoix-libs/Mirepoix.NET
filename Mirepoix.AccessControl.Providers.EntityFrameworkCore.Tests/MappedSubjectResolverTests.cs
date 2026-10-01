@@ -76,7 +76,7 @@ public class MappedSubjectResolverTests
         var services = new ServiceCollection();
         services.AddDbContext<UsersDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddAccessControlSubjectProviders<UsersDbContext>(o =>
-            o.MapSubject<AppUser>(m => m.Id(x => x.Id)));
+            o.MapSubject<AppUser>(m => m.Id(x => x.Id).IncludeAll()));
 
         await using var sp = services.BuildServiceProvider();
         await using (var scope = sp.CreateAsyncScope())
@@ -104,8 +104,8 @@ public class MappedSubjectResolverTests
         services.AddDbContext<UsersDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddAccessControlSubjectProviders<UsersDbContext>(o =>
         {
-            o.MapSubject<Employee>(m => m.Id(x => x.Id).Type("employee").TypeAsRole());
-            o.MapSubject<Customer>(m => m.Id(x => x.Id).Type("customer"));
+            o.MapSubject<Employee>(m => m.Id(x => x.Id).Type("employee").TypeAsRole().Include(x => x.Title));
+            o.MapSubject<Customer>(m => m.Id(x => x.Id).Type("customer").Include(x => x.Tier));
         });
 
         await using var sp = services.BuildServiceProvider();
@@ -143,7 +143,7 @@ public class MappedSubjectResolverTests
         var services = new ServiceCollection();
         services.AddDbContext<UsersDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddAccessControlSubjectProviders<UsersDbContext>(o =>
-            o.MapSubject<Person>(m => m.Id(x => x.Id).Discriminator(x => x.Kind).TypeAsBoth()));
+            o.MapSubject<Person>(m => m.Id(x => x.Id).Discriminator(x => x.Kind).TypeAsBoth().Include(x => x.Name)));
 
         await using var sp = services.BuildServiceProvider();
         await using (var scope = sp.CreateAsyncScope())

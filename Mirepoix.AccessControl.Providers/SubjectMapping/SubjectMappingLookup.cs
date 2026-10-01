@@ -75,14 +75,27 @@ public static class SubjectMappingLookup
             throw new KeyNotFoundException($"Subject '{id}' was not found.");
         }
 
+        Subject? found = null;
         foreach (var map in options.Maps)
         {
             var entity = await fetchAsync(map, id, cancellationToken).ConfigureAwait(false);
             if (entity is null)
                 continue;
 
-            return SubjectFactory.Create(entity, map);
+            if (options.Maps.Count == 1)
+                return SubjectFactory.Create(entity, map);
+
+            if (found is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Subject '{id}' matched more than one subject map.");
+            }
+
+            found = SubjectFactory.Create(entity, map);
         }
+
+        if (found is not null)
+            return found;
 
         throw new KeyNotFoundException($"Subject '{id}' was not found.");
     }
@@ -116,4 +129,4 @@ public static class SubjectMappingLookup
         return string.Equals(value, hint, StringComparison.Ordinal);
     }
 }
-
+

@@ -45,6 +45,10 @@ public static class AccessControlSchemaDialectMap
     public const string SqlServerDropResourceAttributeResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.003_drop_resource_attribute.sql";
 
+    /// <summary>Names the manifest resource that applies a binary collation to existing SqlServer key columns.</summary>
+    public const string SqlServerBinaryKeysResource =
+        "Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.004_binary_keys.sql";
+
     /// <summary>Names the manifest resource for the PostgreSQL core schema script.</summary>
     public const string PostgreSqlCoreResource =
         "Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001_init.sql";
@@ -124,6 +128,7 @@ public static class AccessControlSchemaDialectMap
                     SqlServerManagementResource,
                     SqlServerSubjectsResource,
                     SqlServerDropResourceAttributeResource,
+                    SqlServerBinaryKeysResource,
                 ],
             AccessControlSchemaDialect.PostgreSql =>
                 [
@@ -149,7 +154,7 @@ public static class AccessControlSchemaDialectMap
         SubjectStorageLayout layout)
     {
         var resources = ResourceNames(dialect);
-        return layout switch
+        IReadOnlyList<string> selected = layout switch
         {
             SubjectStorageLayout.Native => resources,
             SubjectStorageLayout.MappedLibraryRoles =>
@@ -158,6 +163,14 @@ public static class AccessControlSchemaDialectMap
                 [resources[0], resources[2], resources[4]],
             _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, null),
         };
+
+        if (dialect == AccessControlSchemaDialect.SqlServer
+            && !selected.Contains(SqlServerBinaryKeysResource))
+        {
+            return [..selected, SqlServerBinaryKeysResource];
+        }
+
+        return selected;
     }
 }
 

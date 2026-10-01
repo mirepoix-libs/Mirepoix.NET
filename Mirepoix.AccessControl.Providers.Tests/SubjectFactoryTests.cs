@@ -16,6 +16,7 @@ public class SubjectFactoryTests
         var options = new SubjectMappingOptions();
         options.MapEntity<User>(m => m
             .Id(x => x.Id)
+            .Include(x => x.Email)
             .Roles(x => x.Roles)
             .Discriminator(x => x.Kind)
             .TypeAsBoth());

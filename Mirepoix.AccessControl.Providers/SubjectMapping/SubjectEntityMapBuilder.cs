@@ -5,9 +5,9 @@ namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
 /// Builds a <see cref="SubjectEntityMap"/> over <typeparamref name="T"/>.
-/// Defaults: all other public readable instance properties become attributes (excluding id, roles,
-/// discriminator, and anything <see cref="Exclude"/>d). Calling <see cref="Include"/> switches to
-/// include-only mode for attributes. <see cref="Build"/> is internal; use
+/// Defaults: public properties are not attributes until <see cref="Include"/> or <see cref="IncludeAll"/>.
+/// Id, roles, and the discriminator stay out of the attribute list. <see cref="Exclude"/> removes members
+/// from an <see cref="IncludeAll"/> map. <see cref="Build"/> is internal; use
 /// <see cref="SubjectMappingOptions.MapEntity{T}"/>.
 /// </summary>
 /// <typeparam name="T">CLR entity type being mapped.</typeparam>
@@ -20,6 +20,7 @@ public sealed class SubjectEntityMapBuilder<T>
     private readonly List<PropertyInfo> _roleMembers = new();
     private readonly HashSet<string> _includeOnly = new(StringComparer.Ordinal);
     private bool _includeOnlyMode;
+    private bool _includeAll;
     private string? _fixedTypeValue;
     private PropertyInfo? _discriminatorMember;
     private SubjectTypeDisposition _typeDisposition = SubjectTypeDisposition.Attribute;
@@ -64,6 +65,19 @@ public sealed class SubjectEntityMapBuilder<T>
     }
 
     /// <summary>
+    /// Exports every other public readable property as an attribute, then applies <see cref="Exclude"/>.
+    /// Clears include-only mode.
+    /// </summary>
+    /// <returns>This builder.</returns>
+    public SubjectEntityMapBuilder<T> IncludeAll()
+    {
+        _includeAll = true;
+        _includeOnlyMode = false;
+        _includeOnly.Clear();
+        return this;
+    }
+
+    /// <summary>
     /// Includes a property as an attribute and switches the builder to include-only mode
     /// (only explicitly included properties become attributes, aside from id/roles/discriminator rules).
     /// </summary>
@@ -72,6 +86,7 @@ public sealed class SubjectEntityMapBuilder<T>
     /// <returns>This builder.</returns>
     public SubjectEntityMapBuilder<T> Include(Expression<Func<T, object?>> property, string? attributeName = null)
     {
+        _includeAll = false;
         _includeOnlyMode = true;
         var prop = GetProperty(property);
         _includeOnly.Add(prop.Name);
@@ -209,6 +224,8 @@ public sealed class SubjectEntityMapBuilder<T>
             .ToList();
 
         var attributeMembers = new List<MappedAttributeMember>();
+        if (_includeAll || _includeOnlyMode)
+        {
         foreach (var prop in properties)
         {
             if (prop.Name == id.Name)
@@ -224,6 +241,7 @@ public sealed class SubjectEntityMapBuilder<T>
 
             var attrName = _renames.TryGetValue(prop.Name, out var renamed) ? renamed : prop.Name;
             attributeMembers.Add(new MappedAttributeMember { Member = prop, AttributeName = attrName });
+        }
         }
 
         SubjectStorageHints? hints = null;

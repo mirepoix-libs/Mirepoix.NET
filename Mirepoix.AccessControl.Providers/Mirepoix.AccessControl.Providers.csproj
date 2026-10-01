@@ -35,6 +35,9 @@
     <EmbeddedResource Include="Schema\Scripts\SqlServer\003_drop_resource_attribute.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.003_drop_resource_attribute.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Schema\Scripts\SqlServer\004_binary_keys.sql">
+      <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.SqlServer.004_binary_keys.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="Schema\Scripts\PostgreSql\001_init.sql">
       <LogicalName>Mirepoix.AccessControl.Providers.Schema.Scripts.PostgreSql.001_init.sql</LogicalName>
     </EmbeddedResource>

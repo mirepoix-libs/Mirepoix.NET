@@ -19,7 +19,7 @@ public class SubjectMappingLookupTests
     {
         var options = new SubjectMappingOptions();
         options.MapEntity<Employee>(m => m.Id(x => x.Id).Type("employee"));
-        options.MapEntity<Customer>(m => m.Id(x => x.Id).Type("customer"));
+        options.MapEntity<Customer>(m => m.Id(x => x.Id).Type("customer").Include(x => x.Tier));
 
         var subject = await SubjectMappingLookup.HydrateAsync(
             new Subject("c1", new HashSet<string>(), new Dictionary<string, object?>()),
@@ -42,7 +42,7 @@ public class SubjectMappingLookupTests
     {
         var probed = new List<Type>();
         var options = new SubjectMappingOptions();
-        options.MapEntity<Employee>(m => m.Id(x => x.Id).Type("employee"));
+        options.MapEntity<Employee>(m => m.Id(x => x.Id).Type("employee").Include(x => x.Title));
         options.MapEntity<Customer>(m => m.Id(x => x.Id).Type("customer"));
 
         var partial = new Subject(
@@ -64,6 +64,26 @@ public class SubjectMappingLookupTests
 
         Assert.Equal(new[] { typeof(Employee) }, probed);
         Assert.Equal("dev", subject.Attributes["Title"]);
+    }
+
+    [Fact]
+    public async Task Probe_throws_when_more_than_one_map_matches()
+    {
+        var options = new SubjectMappingOptions();
+        options.MapEntity<Employee>(m => m.Id(x => x.Id).Type("employee"));
+        options.MapEntity<Customer>(m => m.Id(x => x.Id).Type("customer"));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            SubjectMappingLookup.HydrateAsync(
+                new Subject("same", new HashSet<string>(), new Dictionary<string, object?>()),
+                options,
+                (map, id, _) => Task.FromResult<object?>(
+                    map.ClrType == typeof(Employee)
+                        ? new Employee { Id = id }
+                        : new Customer { Id = id }),
+                CancellationToken.None));
+
+        Assert.Contains("matched more than one subject map", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
