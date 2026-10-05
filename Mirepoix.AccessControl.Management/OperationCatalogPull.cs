@@ -13,7 +13,7 @@ public sealed record EnforcementAppCatalog(string Name, IReadOnlyList<PublishedO
 /// Carries the apps that answered and the names that failed on one pull.
 /// </summary>
 /// <param name="Apps">Apps whose bodies deserialized. Failed apps are omitted.</param>
-/// <param name="FailedApps">App names that timed out, returned a non-success status, or did not deserialize. Empty when every app answered.</param>
+/// <param name="FailedApps">App names that timed out, returned a non-success status, did not deserialize, or had no local source. Empty when every app answered.</param>
 public sealed record OperationCatalogPull(
     IReadOnlyList<EnforcementAppCatalog> Apps,
     IReadOnlyList<string> FailedApps);

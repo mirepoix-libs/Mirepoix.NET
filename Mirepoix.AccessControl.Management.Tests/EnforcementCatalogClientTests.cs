@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Mirepoix.AccessControl;
 using Mirepoix.AccessControl.Management;
+using Mirepoix.AccessControl.Policy;
 
 public class EnforcementCatalogClientTests
 {
@@ -219,6 +221,128 @@ public class EnforcementCatalogClientTests
         var billing = Assert.Single(pull.Apps);
         Assert.Equal("billing", billing.Name);
         Assert.Equal("invoice:post", Assert.Single(billing.Operations).Operation);
+    }
+
+    [Fact]
+    public void AddLocalEnforcementApp_defaults_to_local_and_rejects_a_repeated_name()
+    {
+        var options = new OperationCatalogOptions();
+        options.AddApp("billing", "https://billing.example");
+        options.AddLocalEnforcementApp();
+
+        Assert.Equal("billing", options.Apps[0].Name);
+        Assert.Equal("https://billing.example", options.Apps[0].Origin);
+        Assert.False(options.Apps[0].IsLocal);
+        Assert.Equal("local", options.Apps[1].Name);
+        Assert.Null(options.Apps[1].Origin);
+        Assert.True(options.Apps[1].IsLocal);
+
+        Assert.Throws<ArgumentException>(() => options.AddApp("billing", "https://other.example"));
+        Assert.Throws<ArgumentException>(() => options.AddLocalEnforcementApp("billing"));
+        Assert.Throws<ArgumentException>(() => options.AddLocalEnforcementApp("local"));
+        Assert.Throws<ArgumentException>(() => options.AddLocalEnforcementApp(" "));
+    }
+
+    [Fact]
+    public async Task PullAsync_reads_local_operations_without_http_and_keeps_remote_peers()
+    {
+        var httpCalled = false;
+        var handler = new StubHandler(request =>
+        {
+            httpCalled = true;
+            if (request.RequestUri!.AbsoluteUri == "https://billing.example/access-control/operations")
+            {
+                var json = JsonSerializer.Serialize(
+                    new[] { new PublishedOperation("invoice:post", "invoices/{id}", "POST") },
+                    JsonOptions);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            throw new InvalidOperationException(request.RequestUri.AbsoluteUri);
+        });
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IPublishedOperationSource>(new FixedOperationSource(
+        [
+            new PublishedOperation("doc:read", "", ""),
+        ]));
+        using var provider = services.BuildServiceProvider();
+
+        var options = new OperationCatalogOptions();
+        options.AddLocalEnforcementApp();
+        options.AddApp("billing", "https://billing.example");
+        var client = new EnforcementCatalogClient(new HttpClient(handler), options, provider);
+
+        var pull = await client.PullAsync(CancellationToken.None);
+
+        Assert.Equal(["local", "billing"], pull.Apps.Select(app => app.Name).ToArray());
+        Assert.Equal("doc:read", Assert.Single(pull.Apps[0].Operations).Operation);
+        Assert.Equal("invoice:post", Assert.Single(pull.Apps[1].Operations).Operation);
+        Assert.Empty(pull.FailedApps);
+        Assert.True(httpCalled);
+    }
+
+    [Fact]
+    public async Task PullAsync_records_missing_local_source_without_http()
+    {
+        var httpCalled = false;
+        var handler = new StubHandler(_ =>
+        {
+            httpCalled = true;
+            throw new InvalidOperationException("no http");
+        });
+        var options = new OperationCatalogOptions();
+        options.AddLocalEnforcementApp("gateway");
+        using var provider = new ServiceCollection().BuildServiceProvider();
+        var client = new EnforcementCatalogClient(new HttpClient(handler), options, provider);
+
+        var pull = await client.PullAsync(CancellationToken.None);
+
+        Assert.False(httpCalled);
+        Assert.Empty(pull.Apps);
+        Assert.Equal(["gateway"], pull.FailedApps);
+
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.PullAsync(canceled.Token));
+    }
+
+    [Fact]
+    public async Task AddAccessControlOperationCatalog_resolves_local_operation_source()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IPolicySetEditor, UnusedEditor>();
+        services.AddSingleton<IPublishedOperationSource>(new FixedOperationSource(
+        [
+            new PublishedOperation("invoice:post", "", ""),
+        ]));
+        services.AddAccessControlOperationCatalog(options => options.AddLocalEnforcementApp());
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<IEnforcementCatalogClient>();
+        var pull = await client.PullAsync(CancellationToken.None);
+
+        Assert.Empty(pull.FailedApps);
+        Assert.Equal("local", Assert.Single(pull.Apps).Name);
+        Assert.Equal("invoice:post", Assert.Single(pull.Apps[0].Operations).Operation);
+    }
+
+    private sealed class FixedOperationSource(IReadOnlyList<PublishedOperation> operations) : IPublishedOperationSource
+    {
+        public IReadOnlyList<PublishedOperation> List() => operations;
+    }
+
+    private sealed class UnusedEditor : IPolicySetEditor
+    {
+        public void Replace(PolicySet set)
+        {
+        }
+
+        public Task ReplaceAsync(PolicySet set, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class StubHandler : HttpMessageHandler

@@ -22,8 +22,12 @@ public static class OperationCatalogServiceCollectionExtensions
     /// Registers options, a named <see cref="HttpClient"/> (<see cref="HttpClientName"/>),
     /// <see cref="OperationCatalogSnapshot"/>, <see cref="OperationPatternValidator"/>, and
     /// <see cref="EnforcementCatalogClient"/> as <see cref="IEnforcementCatalogClient"/>.
+    /// Local apps resolve <see cref="Mirepoix.AccessControl.IPublishedOperationSource"/> from this collection.
+    /// A missing source is a pull failure, not a registration failure.
     /// The decorator uses the same lifetime as the editor it replaces.
-    /// A second call returns without wrapping again.
+    /// A second call returns once <see cref="OperationCatalogOptions"/> is already registered.
+    /// <see cref="AttributeCatalogServiceCollectionExtensions.AddAccessControlAttributeCatalog"/> shares that one decorator.
+    /// The factory resolves whichever catalog services are registered when the editor is created.
     /// </remarks>
     /// <exception cref="ArgumentException">Thrown when <paramref name="configure"/> adds no apps.</exception>
     /// <exception cref="InvalidOperationException">
@@ -41,7 +45,7 @@ public static class OperationCatalogServiceCollectionExtensions
         if (options.Apps.Count == 0)
             throw new ArgumentException("At least one enforcement app is required.", nameof(configure));
 
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(ValidatingPolicySetEditor)))
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(OperationCatalogOptions)))
             return services;
 
         var editor = services.LastOrDefault(descriptor => descriptor.ServiceType == typeof(IPolicySetEditor));
@@ -55,23 +59,53 @@ public static class OperationCatalogServiceCollectionExtensions
         services.AddSingleton<IEnforcementCatalogClient>(provider =>
         {
             var http = provider.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName);
-            return new EnforcementCatalogClient(http, provider.GetRequiredService<OperationCatalogOptions>());
+            return new EnforcementCatalogClient(
+                http,
+                provider.GetRequiredService<OperationCatalogOptions>(),
+                provider);
         });
+
+        services.EnsureValidatingPolicySetEditor();
+        return services;
+    }
+
+    /// <summary>
+    /// Wraps the last <see cref="IPolicySetEditor"/> with <see cref="ValidatingPolicySetEditor"/> once.
+    /// </summary>
+    /// <param name="services">Collection that may already contain the decorator.</param>
+    /// <remarks>
+    /// Returns when the decorator is already registered, or when no editor is registered.
+    /// The factory reads operation and attribute catalog services at resolution time,
+    /// so either <see cref="AddAccessControlOperationCatalog"/> or
+    /// <see cref="AttributeCatalogServiceCollectionExtensions.AddAccessControlAttributeCatalog"/> can register first.
+    /// A missing catalog service leaves that slice ungated.
+    /// </remarks>
+    internal static void EnsureValidatingPolicySetEditor(this IServiceCollection services)
+    {
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(ValidatingPolicySetEditor)))
+            return;
+
+        var editor = services.LastOrDefault(descriptor => descriptor.ServiceType == typeof(IPolicySetEditor));
+        if (editor is null)
+            return;
 
         services.Remove(editor);
         services.Add(new ServiceDescriptor(
             typeof(IPolicySetEditor),
             provider => new ValidatingPolicySetEditor(
                 CreateEditor(provider, editor),
-                provider.GetRequiredService<OperationCatalogSnapshot>(),
-                provider.GetRequiredService<IEnforcementCatalogClient>(),
-                provider.GetRequiredService<OperationPatternValidator>()),
+                provider.GetService<OperationCatalogSnapshot>(),
+                provider.GetService<IEnforcementCatalogClient>(),
+                provider.GetService<OperationPatternValidator>(),
+                provider.GetService<AttributeCatalogSnapshot>(),
+                provider.GetService<IAttributeCatalogClient>(),
+                provider.GetService<AttributeCatalogValidator>(),
+                provider.GetService<AttributeCatalogOptions>()),
             editor.Lifetime));
         services.Add(new ServiceDescriptor(
             typeof(ValidatingPolicySetEditor),
             provider => (ValidatingPolicySetEditor)provider.GetRequiredService<IPolicySetEditor>(),
             editor.Lifetime));
-        return services;
     }
 
     private static IPolicySetEditor CreateEditor(IServiceProvider provider, ServiceDescriptor editor)
