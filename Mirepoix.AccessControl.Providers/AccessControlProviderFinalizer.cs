@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Mirepoix.AccessControl.Providers;
 
@@ -8,8 +9,9 @@ namespace Mirepoix.AccessControl.Providers;
 public static class AccessControlProviderFinalizer
 {
     /// <summary>
-    /// Registers mapped resource resolvers and composite hydration when options require it.
-    /// Idempotent when called multiple times on the same options instance.
+    /// Registers the provider attribute catalog, then mapped resource resolvers when options require them.
+    /// The catalog singleton is registered even when maps are empty. Resource hydration stays idempotent
+    /// on the same options instance.
     /// </summary>
     /// <param name="services">DI collection.</param>
     /// <param name="options">Configured provider options.</param>
@@ -17,6 +19,9 @@ public static class AccessControlProviderFinalizer
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
+
+        services.TryAddSingleton<IPublishedProviderAttributeSource>(
+            new PublishedProviderAttributeSource(options));
 
         if (!options.NeedsResourceHydrator)
         {

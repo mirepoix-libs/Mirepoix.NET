@@ -1,3 +1,5 @@
+using Mirepoix.AccessControl.Policy;
+
 namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
@@ -10,6 +12,9 @@ public abstract class AccessControlProviderOptions
 
     /// <summary>Gets resource entity mapping configuration.</summary>
     public ResourceMappingOptions ResourceMapping { get; } = new();
+
+    /// <summary>Holds explicit subject and resource keys added with <c>AddAttribute</c>.</summary>
+    internal PublishedProviderAttributeList ExplicitAttributes { get; } = new();
 
     /// <summary>Reports whether a policy source was requested via fluent configuration.</summary>
     public bool PolicySourceRequested { get; protected set; }
@@ -100,6 +105,27 @@ public abstract class AccessControlProviderOptions<TSelf> : AccessControlProvide
     public TSelf AddResourceHydrator()
     {
         ResourceHydratorRequested = true;
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Publishes an extra subject or resource attribute that maps do not already export.
+    /// A repeated <c>(target, type, key)</c> is ignored. The catalog list also drops <c>time</c>.
+    /// </summary>
+    /// <param name="target">Subject or resource. Context is rejected.</param>
+    /// <param name="key">Non-blank bundle attribute key.</param>
+    /// <param name="type">
+    /// Catalog type. Null on subject becomes <c>subject</c>. Resource requires a non-blank type.
+    /// </param>
+    /// <returns>This options instance for chaining.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="key"/> is blank, <paramref name="target"/> is context,
+    /// a provided subject type is blank, or resource type is missing.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="target"/> is not a known value.</exception>
+    public TSelf AddAttribute(AttributeTarget target, string key, string? type = null)
+    {
+        ExplicitAttributes.Add(target, key, type);
         return (TSelf)this;
     }
 }
