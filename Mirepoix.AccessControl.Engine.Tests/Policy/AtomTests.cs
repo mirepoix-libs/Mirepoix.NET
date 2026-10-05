@@ -51,21 +51,21 @@ public class AtomTests
     [Fact]
     public void AttributeValueAtom_equals_when_subject_attribute_matches()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Subject, "dept", ComparisonOperator.Equals, "finance");
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.Equals, "finance");
         Assert.True(atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?> { ["dept"] = "finance" })));
     }
 
     [Fact]
     public void AttributeValueAtom_equals_unsatisfied_when_value_differs()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Subject, "dept", ComparisonOperator.Equals, "finance");
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.Equals, "finance");
         Assert.False(atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?> { ["dept"] = "legal" })));
     }
 
     [Fact]
     public void AttributeValueAtom_not_equals_when_value_differs()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Resource, "status", ComparisonOperator.NotEquals, "published");
+        var atom = new AttributeValueAtom(AttributeTarget.Resource, "doc", "status", ComparisonOperator.NotEquals, "published");
         Assert.True(atom.IsSatisfied(Bundle(resourceAttrs: new Dictionary<string, object?> { ["status"] = "draft" })));
     }
 
@@ -80,28 +80,28 @@ public class AtomTests
     [InlineData(ComparisonOperator.LessThanOrEqual, 6, 5, false)]
     public void AttributeValueAtom_ordering_uses_IComparable(ComparisonOperator op, int actual, int expected, bool satisfied)
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Subject, "level", op, expected);
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "level", op, expected);
         Assert.Equal(satisfied, atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?> { ["level"] = actual })));
     }
 
     [Fact]
     public void AttributeValueAtom_in_when_value_is_in_expected_enumeration()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Context, "region", ComparisonOperator.In, new[] { "us", "eu" });
+        var atom = new AttributeValueAtom(AttributeTarget.Context, null, "region", ComparisonOperator.In, new[] { "us", "eu" });
         Assert.True(atom.IsSatisfied(Bundle(values: new Dictionary<string, object?> { ["region"] = "eu" })));
     }
 
     [Fact]
     public void AttributeValueAtom_in_unsatisfied_when_value_not_in_enumeration()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Context, "region", ComparisonOperator.In, new[] { "us", "eu" });
+        var atom = new AttributeValueAtom(AttributeTarget.Context, null, "region", ComparisonOperator.In, new[] { "us", "eu" });
         Assert.False(atom.IsSatisfied(Bundle(values: new Dictionary<string, object?> { ["region"] = "apac" })));
     }
 
     [Fact]
     public void AttributeValueAtom_reads_context_claims_when_not_in_values()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Context, "tenant", ComparisonOperator.Equals, "acme");
+        var atom = new AttributeValueAtom(AttributeTarget.Context, null, "tenant", ComparisonOperator.Equals, "acme");
         Assert.True(atom.IsSatisfied(Bundle(claims: new Dictionary<string, object?> { ["tenant"] = "acme" })));
     }
 
@@ -112,15 +112,15 @@ public class AtomTests
             claims: new Dictionary<string, object?> { ["tenant"] = "from-claims" },
             values: new Dictionary<string, object?> { ["tenant"] = "from-values" });
 
-        Assert.True(new AttributeValueAtom(AttributeTarget.Context, "tenant", ComparisonOperator.Equals, "from-values").IsSatisfied(bundle));
-        Assert.False(new AttributeValueAtom(AttributeTarget.Context, "tenant", ComparisonOperator.Equals, "from-claims").IsSatisfied(bundle));
+        Assert.True(new AttributeValueAtom(AttributeTarget.Context, null, "tenant", ComparisonOperator.Equals, "from-values").IsSatisfied(bundle));
+        Assert.False(new AttributeValueAtom(AttributeTarget.Context, null, "tenant", ComparisonOperator.Equals, "from-claims").IsSatisfied(bundle));
     }
 
     [Fact]
     public void AttributeValueAtom_reads_context_time_when_key_is_time()
     {
         var now = new DateTimeOffset(2026, 9, 10, 2, 0, 0, TimeSpan.Zero);
-        var atom = new AttributeValueAtom(AttributeTarget.Context, "time", ComparisonOperator.Equals, now);
+        var atom = new AttributeValueAtom(AttributeTarget.Context, null, "time", ComparisonOperator.Equals, now);
         Assert.True(atom.IsSatisfied(Bundle(time: now)));
     }
 
@@ -128,7 +128,7 @@ public class AtomTests
     public void AttributeValueAtom_context_time_key_is_ordinal_ignore_case()
     {
         var now = new DateTimeOffset(2026, 9, 10, 2, 0, 0, TimeSpan.Zero);
-        var atom = new AttributeValueAtom(AttributeTarget.Context, "TIME", ComparisonOperator.Equals, now);
+        var atom = new AttributeValueAtom(AttributeTarget.Context, null, "TIME", ComparisonOperator.Equals, now);
         Assert.True(atom.IsSatisfied(Bundle(time: now)));
     }
 
@@ -137,7 +137,7 @@ public class AtomTests
     {
         var fromTime = new DateTimeOffset(2026, 9, 10, 2, 0, 0, TimeSpan.Zero);
         var fromValues = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var atom = new AttributeValueAtom(AttributeTarget.Context, "time", ComparisonOperator.Equals, fromTime);
+        var atom = new AttributeValueAtom(AttributeTarget.Context, null, "time", ComparisonOperator.Equals, fromTime);
         Assert.True(atom.IsSatisfied(Bundle(
             time: fromTime,
             values: new Dictionary<string, object?> { ["time"] = fromValues })));
@@ -146,16 +146,16 @@ public class AtomTests
     [Fact]
     public void AttributeValueAtom_missing_attribute_is_not_satisfied()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Subject, "dept", ComparisonOperator.Equals, "finance");
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.Equals, "finance");
         Assert.False(atom.IsSatisfied(Bundle()));
     }
 
     [Fact]
     public void AttributeValueAtom_missing_attribute_satisfies_not_equals_only()
     {
-        var notEquals = new AttributeValueAtom(AttributeTarget.Subject, "dept", ComparisonOperator.NotEquals, "finance");
-        var greater = new AttributeValueAtom(AttributeTarget.Subject, "level", ComparisonOperator.GreaterThan, 0);
-        var inn = new AttributeValueAtom(AttributeTarget.Subject, "dept", ComparisonOperator.In, new[] { "finance" });
+        var notEquals = new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.NotEquals, "finance");
+        var greater = new AttributeValueAtom(AttributeTarget.Subject, "subject", "level", ComparisonOperator.GreaterThan, 0);
+        var inn = new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.In, new[] { "finance" });
 
         var bundle = Bundle();
         Assert.True(notEquals.IsSatisfied(bundle));
@@ -168,20 +168,20 @@ public class AtomTests
     {
         Assert.Equal(
             "attribute-value",
-            new AttributeValueAtom(AttributeTarget.Subject, "k", ComparisonOperator.Equals, "v").Name);
+            new AttributeValueAtom(AttributeTarget.Subject, "subject", "k", ComparisonOperator.Equals, "v").Name);
     }
 
     [Fact]
     public void AttributeValueAtom_equals_int_expected_and_long_attribute()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Subject, "level", ComparisonOperator.Equals, 5);
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "level", ComparisonOperator.Equals, 5);
         Assert.True(atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?> { ["level"] = 5L })));
     }
 
     [Fact]
     public void AttributeValueAtom_greater_than_long_attribute_and_int_expected()
     {
-        var atom = new AttributeValueAtom(AttributeTarget.Subject, "level", ComparisonOperator.GreaterThan, 5);
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "level", ComparisonOperator.GreaterThan, 5);
         Assert.True(atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?> { ["level"] = 6L })));
         Assert.False(atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?> { ["level"] = 5L })));
     }
@@ -234,6 +234,7 @@ public class AtomTests
         var cutoff = new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
         var atom = new AttributeValueAtom(
             AttributeTarget.Context,
+            null,
             "time",
             ComparisonOperator.LessThan,
             cutoff.ToString("o"));
@@ -244,14 +245,14 @@ public class AtomTests
     [Fact]
     public void SubjectIdEqualsAttributeAtom_satisfied_when_resource_owner_matches_subject_id()
     {
-        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "ownerId");
+        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId");
         Assert.True(atom.IsSatisfied(Bundle(resourceAttrs: new Dictionary<string, object?> { ["ownerId"] = "u1" })));
     }
 
     [Fact]
     public void SubjectIdEqualsAttributeAtom_unsatisfied_when_owner_is_different_subject()
     {
-        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "ownerId");
+        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId");
         Assert.False(atom.IsSatisfied(Bundle(
             subjectId: "u2",
             resourceAttrs: new Dictionary<string, object?> { ["ownerId"] = "u1" })));
@@ -260,7 +261,7 @@ public class AtomTests
     [Fact]
     public void SubjectIdEqualsAttributeAtom_unsatisfied_when_attribute_missing()
     {
-        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "ownerId");
+        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId");
         Assert.False(atom.IsSatisfied(Bundle()));
     }
 
@@ -269,15 +270,15 @@ public class AtomTests
     {
         Assert.Equal(
             "subject-id-equals-attribute",
-            new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "ownerId").Name);
+            new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId").Name);
     }
 
     [Fact]
     public void AttributeEqualsAttributeAtom_equals_when_subject_and_resource_attributes_match()
     {
         var atom = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Resource, "region",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "doc", "region",
             ComparisonOperator.Equals);
 
         Assert.True(atom.IsSatisfied(Bundle(
@@ -289,8 +290,8 @@ public class AtomTests
     public void AttributeEqualsAttributeAtom_equals_unsatisfied_when_attributes_differ()
     {
         var atom = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Resource, "region",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "doc", "region",
             ComparisonOperator.Equals);
 
         Assert.False(atom.IsSatisfied(Bundle(
@@ -302,8 +303,8 @@ public class AtomTests
     public void AttributeEqualsAttributeAtom_supports_cross_target_comparisons()
     {
         var atom = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "level",
-            AttributeTarget.Context, "minLevel",
+            AttributeTarget.Subject, "subject", "level",
+            AttributeTarget.Context, null, "minLevel",
             ComparisonOperator.GreaterThanOrEqual);
 
         Assert.True(atom.IsSatisfied(Bundle(
@@ -318,8 +319,8 @@ public class AtomTests
     public void AttributeEqualsAttributeAtom_in_when_left_value_is_in_right_enumeration()
     {
         var atom = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Context, "allowedRegions",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Context, null, "allowedRegions",
             ComparisonOperator.In);
 
         Assert.True(atom.IsSatisfied(Bundle(
@@ -331,8 +332,8 @@ public class AtomTests
     public void AttributeEqualsAttributeAtom_strict_missing_attribute_is_not_satisfied()
     {
         var atom = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Resource, "region",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "doc", "region",
             ComparisonOperator.Equals,
             strict: true);
 
@@ -346,13 +347,13 @@ public class AtomTests
     public void AttributeEqualsAttributeAtom_non_strict_missing_attribute_satisfies_not_equals_only()
     {
         var notEquals = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Resource, "region",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "doc", "region",
             ComparisonOperator.NotEquals,
             strict: false);
         var equals = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Resource, "region",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "doc", "region",
             ComparisonOperator.Equals,
             strict: false);
 
@@ -365,8 +366,8 @@ public class AtomTests
     public void AttributeEqualsAttributeAtom_defaults_to_strict()
     {
         var atom = new AttributeEqualsAttributeAtom(
-            AttributeTarget.Subject, "region",
-            AttributeTarget.Resource, "region",
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "doc", "region",
             ComparisonOperator.NotEquals);
 
         Assert.False(atom.IsSatisfied(Bundle()));
@@ -378,9 +379,115 @@ public class AtomTests
         Assert.Equal(
             "attribute-equals-attribute",
             new AttributeEqualsAttributeAtom(
-                AttributeTarget.Subject, "a",
-                AttributeTarget.Resource, "b",
+                AttributeTarget.Subject, "subject", "a",
+                AttributeTarget.Resource, "doc", "b",
                 ComparisonOperator.Equals).Name);
+    }
+
+    [Fact]
+    public void AttributeValue_requires_type_for_subject()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new AttributeValueAtom(AttributeTarget.Subject, null, "dept", ComparisonOperator.Equals, "x"));
+    }
+
+    [Fact]
+    public void AttributeValue_rejects_blank_type_for_resource()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new AttributeValueAtom(AttributeTarget.Resource, "  ", "status", ComparisonOperator.Equals, "open"));
+    }
+
+    [Fact]
+    public void AttributeValue_rejects_type_for_context()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new AttributeValueAtom(AttributeTarget.Context, "ctx", "time", ComparisonOperator.Equals, "x"));
+    }
+
+    [Fact]
+    public void AttributeValue_type_mismatch_is_not_satisfied()
+    {
+        var atom = new AttributeValueAtom(AttributeTarget.Resource, "invoice", "status", ComparisonOperator.Equals, "open");
+        var bundle = Bundle(resourceAttrs: new Dictionary<string, object?> { ["status"] = "open" });
+        Assert.False(atom.IsSatisfied(bundle));
+    }
+
+    [Fact]
+    public void AttributeValue_type_mismatch_fails_before_value_compare()
+    {
+        var atom = new AttributeValueAtom(AttributeTarget.Resource, "invoice", "status", ComparisonOperator.NotEquals, "closed");
+        Assert.False(atom.IsSatisfied(Bundle(resourceAttrs: new Dictionary<string, object?> { ["status"] = "open" })));
+    }
+
+    [Fact]
+    public void AttributeValue_type_compare_is_ordinal()
+    {
+        var atom = new AttributeValueAtom(AttributeTarget.Resource, "Doc", "status", ComparisonOperator.Equals, "open");
+        Assert.False(atom.IsSatisfied(Bundle(resourceAttrs: new Dictionary<string, object?> { ["status"] = "open" })));
+    }
+
+    [Fact]
+    public void AttributeValue_subject_type_comes_from_subjectType_attribute()
+    {
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "employee", "dept", ComparisonOperator.Equals, "finance");
+        var match = Bundle(subjectAttrs: new Dictionary<string, object?>
+        {
+            ["subjectType"] = "employee",
+            ["dept"] = "finance",
+        });
+        var fallback = Bundle(subjectAttrs: new Dictionary<string, object?> { ["dept"] = "finance" });
+
+        Assert.True(atom.IsSatisfied(match));
+        Assert.False(atom.IsSatisfied(fallback));
+    }
+
+    [Fact]
+    public void AttributeValue_non_string_subjectType_falls_back_to_subject()
+    {
+        var atom = new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.Equals, "finance");
+        Assert.True(atom.IsSatisfied(Bundle(subjectAttrs: new Dictionary<string, object?>
+        {
+            ["subjectType"] = 1,
+            ["dept"] = "finance",
+        })));
+    }
+
+    [Fact]
+    public void SubjectIdEquals_requires_type()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, " ", "ownerId"));
+    }
+
+    [Fact]
+    public void SubjectIdEquals_type_mismatch_is_not_satisfied()
+    {
+        var atom = new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "invoice", "ownerId");
+        Assert.False(atom.IsSatisfied(Bundle(resourceAttrs: new Dictionary<string, object?> { ["ownerId"] = "u1" })));
+    }
+
+    [Fact]
+    public void AttributeEquals_type_mismatch_is_not_satisfied()
+    {
+        var atom = new AttributeEqualsAttributeAtom(
+            AttributeTarget.Subject, "subject", "region",
+            AttributeTarget.Resource, "invoice", "region",
+            ComparisonOperator.Equals);
+
+        Assert.False(atom.IsSatisfied(Bundle(
+            subjectAttrs: new Dictionary<string, object?> { ["region"] = "us" },
+            resourceAttrs: new Dictionary<string, object?> { ["region"] = "us" })));
+    }
+
+    [Fact]
+    public void AttributeEquals_rejects_type_on_context_side()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new AttributeEqualsAttributeAtom(
+                AttributeTarget.Subject, "subject", "level",
+                AttributeTarget.Context, "ctx", "minLevel",
+                ComparisonOperator.Equals));
     }
 
     private static AuthorizationBundle Bundle(

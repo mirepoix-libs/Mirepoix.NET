@@ -105,10 +105,11 @@ public class LocalCheckFlowTests
                         new RoleMembershipAtom(new[] { "EDITOR" }),
                         new AttributeValueAtom(
                             AttributeTarget.Resource,
+                            "doc",
                             "status",
                             ComparisonOperator.Equals,
                             "draft"),
-                        new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "ownerId"),
+                        new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId"),
                         new OperationMatchAtom(Operation.Parse("doc:edit"))
                     })
             });

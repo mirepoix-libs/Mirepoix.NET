@@ -117,6 +117,7 @@ public static class PolicySerializers
             AttributeValueAtom attribute => new AttributeValueAtomDto
             {
                 Target = attribute.Target,
+                EntityType = attribute.Type,
                 Key = attribute.Key,
                 Op = attribute.Op,
                 Expected = ToJsonElement(attribute.Expected),
@@ -125,13 +126,16 @@ public static class PolicySerializers
             SubjectIdEqualsAttributeAtom subjectId => new SubjectIdEqualsAttributeAtomDto
             {
                 Target = subjectId.Target,
+                EntityType = subjectId.Type,
                 Key = subjectId.Key,
             },
             AttributeEqualsAttributeAtom attributeEquals => new AttributeEqualsAttributeAtomDto
             {
                 LeftTarget = attributeEquals.LeftTarget,
+                LeftEntityType = attributeEquals.LeftType,
                 LeftKey = attributeEquals.LeftKey,
                 RightTarget = attributeEquals.RightTarget,
+                RightEntityType = attributeEquals.RightType,
                 RightKey = attributeEquals.RightKey,
                 Op = attributeEquals.Op,
                 Strict = attributeEquals.Strict,
@@ -151,15 +155,21 @@ public static class PolicySerializers
             RoleMembershipAtomDto role => new RoleMembershipAtom(role.Roles),
             AttributeValueAtomDto attribute => new AttributeValueAtom(
                 attribute.Target,
+                attribute.EntityType,
                 attribute.Key,
                 attribute.Op,
                 FromJsonElement(attribute.Expected)),
             OperationMatchAtomDto operation => new OperationMatchAtom(Operation.Parse(operation.Pattern)),
-            SubjectIdEqualsAttributeAtomDto subjectId => new SubjectIdEqualsAttributeAtom(subjectId.Target, subjectId.Key),
+            SubjectIdEqualsAttributeAtomDto subjectId => new SubjectIdEqualsAttributeAtom(
+                subjectId.Target,
+                subjectId.EntityType,
+                subjectId.Key),
             AttributeEqualsAttributeAtomDto attributeEquals => new AttributeEqualsAttributeAtom(
                 attributeEquals.LeftTarget,
+                attributeEquals.LeftEntityType,
                 attributeEquals.LeftKey,
                 attributeEquals.RightTarget,
+                attributeEquals.RightEntityType,
                 attributeEquals.RightKey,
                 attributeEquals.Op,
                 attributeEquals.Strict),

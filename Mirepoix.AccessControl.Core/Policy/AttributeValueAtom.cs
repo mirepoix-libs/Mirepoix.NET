@@ -20,12 +20,17 @@ public sealed class AttributeValueAtom : IAtom
     /// Creates an attribute-vs-expected comparison atom.
     /// </summary>
     /// <param name="target">Names which bundle section holds the attribute.</param>
+    /// <param name="type">Names the subject or resource type. Required and non-blank for subject and resource. Must be null for context.</param>
     /// <param name="key">Names the attribute key (or <c>time</c> for context time).</param>
     /// <param name="op">Holds the comparison operator.</param>
     /// <param name="expected">Holds the expected operand; may be null. For <see cref="ComparisonOperator.In"/>, a non-string enumerable.</param>
-    public AttributeValueAtom(AttributeTarget target, string key, ComparisonOperator op, object? expected)
+    /// <exception cref="ArgumentException">Thrown when subject or resource <paramref name="type"/> is null or blank, or when context <paramref name="type"/> is not null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="target"/> is not a known <see cref="AttributeTarget"/>.</exception>
+    public AttributeValueAtom(AttributeTarget target, string? type, string key, ComparisonOperator op, object? expected)
     {
+        ValidateType(target, type, nameof(type));
         Target = target;
+        Type = type;
         Key = key;
         Op = op;
         Expected = expected;
@@ -33,6 +38,9 @@ public sealed class AttributeValueAtom : IAtom
 
     /// <summary>Names the bundle section to read.</summary>
     public AttributeTarget Target { get; }
+
+    /// <summary>Names the subject or resource type. Null for context.</summary>
+    public string? Type { get; }
 
     /// <summary>Names the attribute key within the target.</summary>
     public string Key { get; }
@@ -48,16 +56,82 @@ public sealed class AttributeValueAtom : IAtom
 
     /// <summary>
     /// Resolves the attribute and compares it to <see cref="Expected"/>.
+    /// Subject and resource atoms return <see langword="false"/> when the bundle type does not equal <see cref="Type"/> (ordinal), before the value compare.
     /// If the attribute is missing, returns <see langword="true"/> only when <see cref="Op"/> is
     /// <see cref="ComparisonOperator.NotEquals"/>.
     /// </summary>
     /// <param name="bundle">Hydrated bundle.</param>
     public bool IsSatisfied(AuthorizationBundle bundle)
     {
+        if (!TypeMatches(bundle, Target, Type))
+            return false;
+
         if (!TryGetAttribute(bundle, Target, Key, out var actual))
             return Op == ComparisonOperator.NotEquals;
 
         return Compare(actual, Op, Expected);
+    }
+
+    /// <summary>
+    /// Requires a non-blank type for subject and resource, and a null type for context.
+    /// </summary>
+    /// <param name="target">Names the bundle section.</param>
+    /// <param name="type">Holds the catalog type, or null for context.</param>
+    /// <param name="paramName">Names the argument reported on <see cref="ArgumentException"/>.</param>
+    /// <exception cref="ArgumentException">Thrown when the type does not match the target rules.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="target"/> is not a known <see cref="AttributeTarget"/>.</exception>
+    internal static void ValidateType(AttributeTarget target, string? type, string paramName)
+    {
+        switch (target)
+        {
+            case AttributeTarget.Subject:
+            case AttributeTarget.Resource:
+                if (string.IsNullOrWhiteSpace(type))
+                    throw new ArgumentException("Subject and resource atoms require a non-blank type.", paramName);
+                return;
+            case AttributeTarget.Context:
+                if (type is not null)
+                    throw new ArgumentException("Context atoms require a null type.", paramName);
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown attribute target.");
+        }
+    }
+
+    /// <summary>
+    /// Returns whether a subject or resource bundle type equals <paramref name="type"/> (ordinal).
+    /// Context always matches.
+    /// </summary>
+    /// <param name="bundle">Hydrated bundle.</param>
+    /// <param name="target">Names the bundle section.</param>
+    /// <param name="type">Holds the atom type. Null only for context.</param>
+    internal static bool TypeMatches(AuthorizationBundle bundle, AttributeTarget target, string? type)
+    {
+        if (target == AttributeTarget.Context)
+            return true;
+
+        return string.Equals(BundleType(bundle, target), type, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Subject type is the <c>subjectType</c> attribute when that value is a string; otherwise <c>subject</c>.
+    /// Resource type is <see cref="Resource.Type"/>.
+    /// </summary>
+    /// <param name="bundle">Hydrated bundle.</param>
+    /// <param name="target">Names the bundle section.</param>
+    internal static string BundleType(AuthorizationBundle bundle, AttributeTarget target)
+    {
+        switch (target)
+        {
+            case AttributeTarget.Subject:
+                if (bundle.Subject.Attributes.TryGetValue("subjectType", out var raw) && raw is string subjectType)
+                    return subjectType;
+                return "subject";
+            case AttributeTarget.Resource:
+                return bundle.Resource.Type;
+            default:
+                return "";
+        }
     }
 
     /// <summary>

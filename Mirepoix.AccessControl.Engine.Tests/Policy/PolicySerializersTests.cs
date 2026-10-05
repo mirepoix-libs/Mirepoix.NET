@@ -51,6 +51,73 @@ public class PolicySerializersTests
     }
 
     [Fact]
+    public void Serializers_round_trip_entityType()
+    {
+        var set = new PolicySet("v1", [
+            new Policy("p1", AuthorizationResult.Allow, null, [
+                new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.Equals, "finance")
+            ])
+        ]);
+        var json = PolicySerializers.ToJson(set);
+        Assert.Contains("\"entityType\":\"subject\"", json);
+        Assert.Contains("\"type\":\"attribute-value\"", json);
+        var round = PolicySerializers.FromJson(json);
+        var atom = Assert.IsType<AttributeValueAtom>(round.Policies[0].Atoms[0]);
+        Assert.Equal("subject", atom.Type);
+    }
+
+    [Fact]
+    public void FromJson_subject_atom_without_entityType_throws()
+    {
+        var json = """
+            {"version":"v1","policies":[{"id":"p1","effect":"Allow","atoms":[{"type":"attribute-value","target":"Subject","key":"dept","op":"Equals","expected":"x"}]}]}
+            """;
+        Assert.ThrowsAny<Exception>(() => PolicySerializers.FromJson(json));
+    }
+
+    [Fact]
+    public void Serializers_round_trip_left_and_right_entityType()
+    {
+        var set = new PolicySet("v1", [
+            new Policy("p1", AuthorizationResult.Allow, null, [
+                new AttributeEqualsAttributeAtom(
+                    AttributeTarget.Subject, "subject", "region",
+                    AttributeTarget.Resource, "doc", "region",
+                    ComparisonOperator.Equals),
+                new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId"),
+            ])
+        ]);
+        var json = PolicySerializers.ToJson(set);
+        Assert.Contains("\"leftEntityType\":\"subject\"", json);
+        Assert.Contains("\"rightEntityType\":\"doc\"", json);
+        Assert.Contains("\"type\":\"subject-id-equals-attribute\"", json);
+        var round = PolicySerializers.FromJson(json);
+        var equals = Assert.IsType<AttributeEqualsAttributeAtom>(round.Policies[0].Atoms[0]);
+        Assert.Equal("subject", equals.LeftType);
+        Assert.Equal("doc", equals.RightType);
+        var owner = Assert.IsType<SubjectIdEqualsAttributeAtom>(round.Policies[0].Atoms[1]);
+        Assert.Equal("doc", owner.Type);
+    }
+
+    [Fact]
+    public void Serializers_round_trip_context_subject_id_null_entityType()
+    {
+        var set = new PolicySet("v1", [
+            new Policy("p1", AuthorizationResult.Allow, null, [
+                new SubjectIdEqualsAttributeAtom(AttributeTarget.Context, null, "actorId")
+            ])
+        ]);
+        var json = PolicySerializers.ToJson(set);
+        Assert.Contains("\"entityType\":null", json);
+        Assert.Contains("\"type\":\"subject-id-equals-attribute\"", json);
+        var round = PolicySerializers.FromJson(json);
+        var atom = Assert.IsType<SubjectIdEqualsAttributeAtom>(round.Policies[0].Atoms[0]);
+        Assert.Equal(AttributeTarget.Context, atom.Target);
+        Assert.Null(atom.Type);
+        Assert.Equal("actorId", atom.Key);
+    }
+
+    [Fact]
     public void Json_round_trip_preserves_time_and_numeric_evaluation()
     {
         var cutoff = new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
@@ -58,11 +125,11 @@ public class PolicySerializersTests
         {
             new Policy("time-gate", AuthorizationResult.Allow, null, new IAtom[]
             {
-                new AttributeValueAtom(AttributeTarget.Context, "time", ComparisonOperator.LessThanOrEqual, cutoff)
+                new AttributeValueAtom(AttributeTarget.Context, null, "time", ComparisonOperator.LessThanOrEqual, cutoff)
             }),
             new Policy("level", AuthorizationResult.Allow, null, new IAtom[]
             {
-                new AttributeValueAtom(AttributeTarget.Subject, "level", ComparisonOperator.Equals, 5)
+                new AttributeValueAtom(AttributeTarget.Subject, "subject", "level", ComparisonOperator.Equals, 5)
             }),
         });
 
@@ -85,12 +152,12 @@ public class PolicySerializersTests
             new Policy("p-allow", AuthorizationResult.Allow, "editors", new IAtom[]
             {
                 new RoleMembershipAtom(new[] { "EDITOR" }),
-                new AttributeValueAtom(AttributeTarget.Subject, "dept", ComparisonOperator.Equals, "finance"),
+                new AttributeValueAtom(AttributeTarget.Subject, "subject", "dept", ComparisonOperator.Equals, "finance"),
                 new OperationMatchAtom(Operation.Parse("doc:edit")),
-                new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "ownerId"),
+                new SubjectIdEqualsAttributeAtom(AttributeTarget.Resource, "doc", "ownerId"),
                 new AttributeEqualsAttributeAtom(
-                    AttributeTarget.Subject, "region",
-                    AttributeTarget.Resource, "region",
+                    AttributeTarget.Subject, "subject", "region",
+                    AttributeTarget.Resource, "doc", "region",
                     ComparisonOperator.Equals),
             }),
             new Policy("p-deny", AuthorizationResult.Deny, null, new IAtom[]
@@ -116,6 +183,7 @@ public class PolicySerializersTests
 
         var attribute = Assert.IsType<AttributeValueAtom>(roundTripped.Policies[0].Atoms[1]);
         Assert.Equal(AttributeTarget.Subject, attribute.Target);
+        Assert.Equal("subject", attribute.Type);
         Assert.Equal("dept", attribute.Key);
         Assert.Equal(ComparisonOperator.Equals, attribute.Op);
         Assert.Equal("finance", attribute.Expected);
@@ -125,12 +193,15 @@ public class PolicySerializersTests
 
         var owner = Assert.IsType<SubjectIdEqualsAttributeAtom>(roundTripped.Policies[0].Atoms[3]);
         Assert.Equal(AttributeTarget.Resource, owner.Target);
+        Assert.Equal("doc", owner.Type);
         Assert.Equal("ownerId", owner.Key);
 
         var regionMatch = Assert.IsType<AttributeEqualsAttributeAtom>(roundTripped.Policies[0].Atoms[4]);
         Assert.Equal(AttributeTarget.Subject, regionMatch.LeftTarget);
+        Assert.Equal("subject", regionMatch.LeftType);
         Assert.Equal("region", regionMatch.LeftKey);
         Assert.Equal(AttributeTarget.Resource, regionMatch.RightTarget);
+        Assert.Equal("doc", regionMatch.RightType);
         Assert.Equal("region", regionMatch.RightKey);
         Assert.Equal(ComparisonOperator.Equals, regionMatch.Op);
         Assert.True(regionMatch.Strict);

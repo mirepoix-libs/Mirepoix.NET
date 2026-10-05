@@ -31,6 +31,9 @@ internal sealed class AttributeValueAtomDto : AtomDto
     /// <summary>Names the attribute target.</summary>
     public AttributeTarget Target { get; set; }
 
+    /// <summary>Names the subject or resource type. JSON name <c>entityType</c>. Null for context.</summary>
+    public string? EntityType { get; set; }
+
     /// <summary>Names the attribute key.</summary>
     public string Key { get; set; } = "";
 
@@ -54,6 +57,9 @@ internal sealed class SubjectIdEqualsAttributeAtomDto : AtomDto
     /// <summary>Names the attribute target.</summary>
     public AttributeTarget Target { get; set; }
 
+    /// <summary>Names the subject or resource type. JSON name <c>entityType</c>. Null for context.</summary>
+    public string? EntityType { get; set; }
+
     /// <summary>Names the attribute key compared to subject id.</summary>
     public string Key { get; set; } = "";
 }
@@ -64,11 +70,17 @@ internal sealed class AttributeEqualsAttributeAtomDto : AtomDto
     /// <summary>Names the left attribute target.</summary>
     public AttributeTarget LeftTarget { get; set; }
 
+    /// <summary>Names the left subject or resource type. JSON name <c>leftEntityType</c>. Null for context.</summary>
+    public string? LeftEntityType { get; set; }
+
     /// <summary>Names the left attribute key.</summary>
     public string LeftKey { get; set; } = "";
 
     /// <summary>Names the right attribute target.</summary>
     public AttributeTarget RightTarget { get; set; }
+
+    /// <summary>Names the right subject or resource type. JSON name <c>rightEntityType</c>. Null for context.</summary>
+    public string? RightEntityType { get; set; }
 
     /// <summary>Names the right attribute key.</summary>
     public string RightKey { get; set; } = "";
