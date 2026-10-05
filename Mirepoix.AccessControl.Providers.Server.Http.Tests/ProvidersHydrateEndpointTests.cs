@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Mirepoix.AccessControl;
+using Mirepoix.AccessControl.Policy;
 using Mirepoix.AccessControl.Protocol.Http;
 using Mirepoix.AccessControl.Providers;
 using Mirepoix.AccessControl.Providers.Server.Http;
@@ -240,6 +242,107 @@ public sealed class ProvidersHydrateEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.DoesNotContain("editor", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AttributeCatalog_ReturnsCamelCaseSubjectAndResourceRows()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<IPublishedProviderAttributeSource>(new FixedAttributeSource());
+        UseCallerPolicy(builder);
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddAttributeCatalog();
+            options.AuthorizationPolicy = "Caller";
+        });
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapAccessControlProviders();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        var response = await client.GetAsync(PublishedAttribute.CatalogPath);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            """[{"target":"subject","type":"subject","key":"dept"},{"target":"resource","type":"document","key":"ownerId"}]""",
+            await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AttributeCatalog_StaysOnCatalogPath_WhenRoutePrefixChanges()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<IPublishedProviderAttributeSource>(new FixedAttributeSource());
+        builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, HeaderTestHandler>("Test", _ => { });
+        builder.Services.AddAuthorization(options => options.AddPolicy("Caller", policy =>
+        {
+            policy.AddAuthenticationSchemes("Test");
+            policy.RequireAuthenticatedUser();
+        }));
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.RoutePrefix = "/pip";
+            options.AddAttributeCatalog();
+            options.AuthorizationPolicy = "Caller";
+        });
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapAccessControlProviders();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        var anonymous = await client.GetAsync(PublishedAttribute.CatalogPath);
+        using var authorized = new HttpRequestMessage(HttpMethod.Get, PublishedAttribute.CatalogPath);
+        authorized.Headers.TryAddWithoutValidation("Authorization", "Bearer test");
+        var catalog = await client.SendAsync(authorized);
+        var underPrefix = await client.GetAsync("/pip/attributes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, catalog.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, underPrefix.StatusCode);
+    }
+
+    [Fact]
+    public void MapAccessControlProviders_Throws_WhenAttributeCatalogEnabledButSourceMissing()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddAccessControlProvidersServerHttp(options =>
+        {
+            options.AddAttributeCatalog();
+            options.AuthorizationPolicy = "Caller";
+        });
+        using var app = builder.Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
+
+        Assert.Contains("IPublishedProviderAttributeSource", exception.Message);
+    }
+
+    [Fact]
+    public void MapAccessControlProviders_Throws_WhenAttributeCatalogMissingAuthorizationPolicy()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IPublishedProviderAttributeSource>(new FixedAttributeSource());
+        builder.Services.AddAccessControlProvidersServerHttp(options => options.AddAttributeCatalog());
+        using var app = builder.Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => app.MapAccessControlProviders());
+
+        Assert.Equal("Access-control HTTP routes require an authorization policy.", exception.Message);
+    }
+
+    private sealed class FixedAttributeSource : IPublishedProviderAttributeSource
+    {
+        public IReadOnlyList<PublishedAttribute> List() =>
+        [
+            new(AttributeTarget.Subject, "subject", "dept"),
+            new(AttributeTarget.Resource, "document", "ownerId"),
+        ];
     }
 
     private sealed class ThrowingResolver : ISubjectResolver

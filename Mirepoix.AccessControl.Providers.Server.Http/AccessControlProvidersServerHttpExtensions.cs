@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Mirepoix.AccessControl;
 using Mirepoix.AccessControl.Protocol.Http;
 using Mirepoix.AccessControl.Providers;
 using Microsoft.AspNetCore.Builder;
@@ -10,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Mirepoix.AccessControl.Providers.Server.Http;
 
 /// <summary>
-/// Registers and maps providers HTTP hydrate endpoints (remote PIP surface).
+/// Registers and maps providers HTTP hydrate endpoints and the attribute catalog GET.
 /// </summary>
 public static class AccessControlProvidersServerHttpExtensions
 {
@@ -28,11 +29,14 @@ public static class AccessControlProvidersServerHttpExtensions
     }
 
     /// <summary>
-    /// Maps enabled PIP hydrate endpoints under the configured route prefix.
+    /// Maps enabled hydrate endpoints and, when enabled, <c>GET</c> <see cref="PublishedAttribute.CatalogPath"/>.
+    /// That catalog path is fixed. <see cref="AccessControlProvidersServerHttpOptions.RoutePrefix"/> does not move it.
+    /// The attribute catalog slice may be the only slice.
     /// </summary>
     /// <exception cref="InvalidOperationException">
-    /// Thrown when no slice is enabled, when an enabled slice is missing its resolver,
-    /// or when <see cref="AccessControlProvidersServerHttpOptions.AuthorizationPolicy"/> is null or white space.
+    /// Thrown when no slice is enabled, when an enabled slice is missing its resolver or
+    /// <see cref="IPublishedProviderAttributeSource"/>, or when
+    /// <see cref="AccessControlProvidersServerHttpOptions.AuthorizationPolicy"/> is null or white space.
     /// The missing-policy message is "Access-control HTTP routes require an authorization policy."
     /// </exception>
     public static IEndpointRouteBuilder MapAccessControlProviders(this IEndpointRouteBuilder endpoints)
@@ -40,10 +44,10 @@ public static class AccessControlProvidersServerHttpExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         var options = endpoints.ServiceProvider.GetRequiredService<AccessControlProvidersServerHttpOptions>();
-        if (!options.SubjectEnabled && !options.ResourceEnabled && !options.ContextEnabled)
+        if (!options.SubjectEnabled && !options.ResourceEnabled && !options.ContextEnabled && !options.AttributeCatalogEnabled)
         {
             throw new InvalidOperationException(
-                "Providers HTTP map requires at least one slice. Call AddSubject, AddResource, and/or AddContext.");
+                "Providers HTTP map requires at least one slice. Call AddSubject, AddResource, AddContext, and/or AddAttributeCatalog.");
         }
 
         var probe = endpoints.ServiceProvider.GetRequiredService<IServiceProviderIsService>();
@@ -63,6 +67,12 @@ public static class AccessControlProvidersServerHttpExtensions
         {
             throw new InvalidOperationException(
                 "Providers HTTP context hydrate requires IContextResolver.");
+        }
+
+        if (options.AttributeCatalogEnabled && !probe.IsService(typeof(IPublishedProviderAttributeSource)))
+        {
+            throw new InvalidOperationException(
+                "Providers HTTP attribute catalog requires IPublishedProviderAttributeSource.");
         }
 
         if (string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
@@ -137,6 +147,16 @@ public static class AccessControlProvidersServerHttpExtensions
                     partial => resolver.HydrateAsync(partial, cancellationToken),
                     AccessContextDto.FromDomain).ConfigureAwait(false);
             });
+        }
+
+        if (options.AttributeCatalogEnabled)
+        {
+            var catalog = endpoints.MapGet(
+                PublishedAttribute.CatalogPath,
+                (IPublishedProviderAttributeSource source) =>
+                    Results.Json(source.List(), AccessControlHttpJson.DefaultOptions));
+            if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
+                catalog.RequireAuthorization(options.AuthorizationPolicy);
         }
 
         return endpoints;

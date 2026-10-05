@@ -1,9 +1,10 @@
+using Mirepoix.AccessControl;
 using Mirepoix.AccessControl.Protocol.Http;
 
 namespace Mirepoix.AccessControl.Providers.Server.Http;
 
 /// <summary>
-/// Selects providers HTTP hydrate slices and their shared route settings.
+/// Selects providers HTTP hydrate slices, the attribute catalog GET, and their shared route settings.
 /// </summary>
 public sealed class AccessControlProvidersServerHttpOptions
 {
@@ -11,7 +12,7 @@ public sealed class AccessControlProvidersServerHttpOptions
     public string RoutePrefix { get; set; } = AccessControlHttpRoutes.DefaultPrefix;
 
     /// <summary>
-    /// Gets or sets the host authorization policy name applied to every hydrate route. Required at map time.
+    /// Gets or sets the host authorization policy name applied to every mapped route. Required at map time.
     /// </summary>
     /// <remarks>
     /// <c>MapAccessControlProviders</c> throws <see cref="InvalidOperationException"/> when this value is null or white space.
@@ -23,6 +24,7 @@ public sealed class AccessControlProvidersServerHttpOptions
     internal bool SubjectEnabled { get; private set; }
     internal bool ResourceEnabled { get; private set; }
     internal bool ContextEnabled { get; private set; }
+    internal bool AttributeCatalogEnabled { get; private set; }
 
     /// <summary>Enables subject hydrate endpoint.</summary>
     public AccessControlProvidersServerHttpOptions AddSubject()
@@ -42,6 +44,16 @@ public sealed class AccessControlProvidersServerHttpOptions
     public AccessControlProvidersServerHttpOptions AddContext()
     {
         ContextEnabled = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables <c>GET</c> <see cref="PublishedAttribute.CatalogPath"/> for the live subject and resource catalog.
+    /// That path is fixed. <see cref="RoutePrefix"/> does not move it. This slice may be the only slice.
+    /// </summary>
+    public AccessControlProvidersServerHttpOptions AddAttributeCatalog()
+    {
+        AttributeCatalogEnabled = true;
         return this;
     }
 }
