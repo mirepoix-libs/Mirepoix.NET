@@ -9,7 +9,7 @@ internal sealed class ManagementRouteAccess
     /// Stores the operation, resource type, and optional route-value key for one management route.
     /// </summary>
     /// <param name="operation">Concrete operation passed to <see cref="IAccessChecker"/>.</param>
-    /// <param name="resourceType">Resource type. Empty for policy-set and operations routes.</param>
+    /// <param name="resourceType">Resource type. Empty for policy-set, operations, and attributes routes.</param>
     /// <param name="idRouteKey">Route value used as the resource id. Null means an empty id.</param>
     public ManagementRouteAccess(string operation, string resourceType, string? idRouteKey)
     {

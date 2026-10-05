@@ -1,12 +1,14 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Mirepoix.AccessControl;
 using Mirepoix.AccessControl.Authorization.AspNetCore;
 using Mirepoix.AccessControl.Management;
 using Mirepoix.AccessControl.Policy;
 using Mirepoix.AccessControl.Providers;
 using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -61,20 +63,23 @@ public sealed class OperationCatalogEndpointTests
             Assert.Equal(HttpStatusCode.NoContent, seeded.StatusCode);
         }
 
-        var snapshot = seed.Services.GetRequiredService<OperationCatalogSnapshot>();
+        var operationSnapshot = seed.Services.GetRequiredService<OperationCatalogSnapshot>();
+        var attributeSnapshot = seed.Services.GetRequiredService<AttributeCatalogSnapshot>();
         var editor = new RecordingEditor();
         await using var admin = await StartAdminAsync(
             editor,
             billing,
             [("billing", BillingOrigin), ("invoices", DeadOrigin)],
-            snapshot);
+            operationSnapshot,
+            attributeSnapshot);
 
         using var client = ManagementTestCaller.Client(admin);
         var response = await PutPolicyAsync(client, "invoice:post");
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var failed = document.RootElement.GetProperty("failedApps");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("invoices", document.RootElement.GetProperty("failedApps")[0].GetString());
+        Assert.Equal("invoices", Assert.Single(failed.EnumerateArray()).GetString());
         Assert.Equal(1, editor.Calls);
     }
 
@@ -117,6 +122,7 @@ public sealed class OperationCatalogEndpointTests
         builder.Services.AddSingleton<PublishedOperationSource>();
         var app = builder.Build();
         app.MapAccessControlOperations();
+        app.MapGet(PublishedAttribute.CatalogPath, () => Results.Text("[]", "application/json"));
         await app.StartAsync();
         return app;
     }
@@ -126,14 +132,15 @@ public sealed class OperationCatalogEndpointTests
         WebApplication billing,
         params (string Name, string Origin)[] apps)
     {
-        return await StartAdminAsync(editor, billing, apps, snapshot: null);
+        return await StartAdminAsync(editor, billing, apps, operationSnapshot: null, attributeSnapshot: null);
     }
 
     private static async Task<WebApplication> StartAdminAsync(
         RecordingEditor editor,
         WebApplication billing,
         (string Name, string Origin)[] apps,
-        OperationCatalogSnapshot? snapshot)
+        OperationCatalogSnapshot? operationSnapshot,
+        AttributeCatalogSnapshot? attributeSnapshot)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -146,11 +153,16 @@ public sealed class OperationCatalogEndpointTests
             foreach (var app in apps)
                 options.AddEnforcementApp(app.Name, app.Origin);
         });
-        if (snapshot is not null)
-            builder.Services.AddSingleton(snapshot);
+        if (operationSnapshot is not null)
+            builder.Services.AddSingleton(operationSnapshot);
+        if (attributeSnapshot is not null)
+            builder.Services.AddSingleton(attributeSnapshot);
 
+        var billingHandler = billing.GetTestServer().CreateHandler();
         builder.Services.AddHttpClient(OperationCatalogServiceCollectionExtensions.HttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => new OriginRouter(billing.GetTestServer().CreateHandler()));
+            .ConfigurePrimaryHttpMessageHandler(() => new OriginRouter(billingHandler));
+        builder.Services.AddHttpClient(AttributeCatalogServiceCollectionExtensions.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new OriginRouter(billingHandler));
 
         var app = builder.Build();
         ManagementTestCaller.Use(app);

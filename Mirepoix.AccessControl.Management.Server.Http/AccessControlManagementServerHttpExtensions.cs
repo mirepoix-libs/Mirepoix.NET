@@ -30,7 +30,34 @@ public static class AccessControlManagementServerHttpExtensions
             services.AddAccessControlOperationCatalog(catalog =>
             {
                 foreach (var app in options.EnforcementApps)
-                    catalog.AddApp(app.Name, app.Origin);
+                {
+                    if (app.IsLocal)
+                        catalog.AddLocalEnforcementApp(app.Name);
+                    else
+                        catalog.AddApp(app.Name, app.Origin!);
+                }
+            });
+        }
+
+        if (options.ProviderApps.Count > 0 || options.EnforcementApps.Count > 0)
+        {
+            services.AddAccessControlAttributeCatalog(catalog =>
+            {
+                foreach (var app in options.ProviderApps)
+                {
+                    if (app.IsLocal)
+                        catalog.AddLocalProviderApp(app.Name);
+                    else
+                        catalog.AddProviderApp(app.Name, app.Origin!);
+                }
+
+                foreach (var app in options.EnforcementApps)
+                {
+                    if (app.IsLocal)
+                        catalog.AddLocalEnforcementApp(app.Name);
+                    else
+                        catalog.AddEnforcementApp(app.Name, app.Origin!);
+                }
             });
         }
 
@@ -89,6 +116,11 @@ public static class AccessControlManagementServerHttpExtensions
         if (options.EnforcementApps.Count > 0)
         {
             MapOperations(group);
+        }
+
+        if (options.ProviderApps.Count > 0 || options.EnforcementApps.Count > 0)
+        {
+            MapAttributes(group);
         }
 
         return endpoints;
@@ -292,6 +324,12 @@ public static class AccessControlManagementServerHttpExtensions
                     exception.Message,
                     statusCode: StatusCodes.Status503ServiceUnavailable);
             }
+            catch (AttributeCatalogUnavailableException exception)
+            {
+                return Results.Problem(
+                    exception.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
             catch (ArgumentException exception)
             {
                 return Results.Problem(
@@ -299,10 +337,10 @@ public static class AccessControlManagementServerHttpExtensions
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
-            var snapshot = request.HttpContext.RequestServices.GetService<OperationCatalogSnapshot>();
-            if (snapshot?.LastPull is { FailedApps.Count: > 0 } pull)
+            var failedApps = MergeFailedApps(request.HttpContext);
+            if (failedApps.Count > 0)
             {
-                return Results.Json(new { failedApps = pull.FailedApps }, statusCode: StatusCodes.Status200OK);
+                return Results.Json(new { failedApps }, statusCode: StatusCodes.Status200OK);
             }
 
             return Results.NoContent();
@@ -330,6 +368,64 @@ public static class AccessControlManagementServerHttpExtensions
                 failedApps = pull.FailedApps,
             });
         }), "access-control:operations:read", "", null);
+    }
+
+    private static void MapAttributes(RouteGroupBuilder group)
+    {
+        Gate(group.MapGet("/attributes", async (
+            IAttributeCatalogClient client,
+            AttributeCatalogSnapshot snapshot,
+            CancellationToken cancellationToken) =>
+        {
+            var pull = await client.PullAsync(cancellationToken);
+            if (pull.FailedApps.Count == 0)
+                snapshot.Apply(pull);
+
+            return Results.Ok(new
+            {
+                providerApps = pull.ProviderApps.Select(app => new
+                {
+                    name = app.Name,
+                    attributes = app.Attributes,
+                }),
+                enforcementApps = pull.EnforcementApps.Select(app => new
+                {
+                    name = app.Name,
+                    attributes = app.Attributes,
+                }),
+                failedApps = pull.FailedApps,
+            });
+        }), "access-control:attributes:read", "", null);
+    }
+
+    private static List<string> MergeFailedApps(HttpContext http)
+    {
+        var failed = new List<string>();
+        AppendFailed(failed, http.RequestServices.GetService<OperationCatalogSnapshot>()?.LastPull?.FailedApps);
+        AppendFailed(failed, http.RequestServices.GetService<AttributeCatalogSnapshot>()?.LastPull?.FailedApps);
+        return failed;
+    }
+
+    private static void AppendFailed(List<string> failed, IReadOnlyList<string>? names)
+    {
+        if (names is null)
+            return;
+
+        foreach (var name in names)
+        {
+            var alreadyListed = false;
+            foreach (var existing in failed)
+            {
+                if (string.Equals(existing, name, StringComparison.Ordinal))
+                {
+                    alreadyListed = true;
+                    break;
+                }
+            }
+
+            if (!alreadyListed)
+                failed.Add(name);
+        }
     }
 
     private static RouteHandlerBuilder Gate(
