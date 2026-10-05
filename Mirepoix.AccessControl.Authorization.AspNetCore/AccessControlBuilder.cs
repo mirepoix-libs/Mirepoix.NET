@@ -140,8 +140,10 @@ public sealed class AccessControlBuilder
     /// <summary>
     /// Completes DI: validates <see cref="IPolicySource"/> or pre-registered <see cref="IAccessChecker"/>, then TryAdds
     /// defaults for mapper, hydrator, combination strategy, <see cref="LocalAccessChecker"/>, authorization handler,
-    /// policy, and scoped <see cref="AccessEndpointFilter"/>. Replaces <see cref="IAccessChecker"/> with
-    /// <see cref="PublishedOperationAccessChecker"/> around the previous registration, including a remote checker.
+    /// policy, and scoped <see cref="AccessEndpointFilter"/>. Registers the operation and context-attribute catalogs,
+    /// including <see cref="IPublishedOperationSource"/> and <see cref="IPublishedEnforcementAttributeSource"/>.
+    /// Replaces <see cref="IAccessChecker"/> with <see cref="PublishedOperationAccessChecker"/> around the previous
+    /// registration, including a remote checker.
     /// </summary>
     /// <exception cref="InvalidOperationException">
     /// Thrown when neither this builder nor the service collection has an <see cref="IPolicySource"/> or
@@ -182,6 +184,13 @@ public sealed class AccessControlBuilder
 
         PublishedOperationList.GetOrAdd(_services);
         _services.TryAddSingleton<PublishedOperationSource>();
+        _services.TryAddSingleton<IPublishedOperationSource>(
+            static sp => sp.GetRequiredService<PublishedOperationSource>());
+
+        PublishedEnforcementAttributeList.GetOrAdd(_services);
+        _services.TryAddSingleton<PublishedEnforcementAttributeSource>();
+        _services.TryAddSingleton<IPublishedEnforcementAttributeSource>(
+            static sp => sp.GetRequiredService<PublishedEnforcementAttributeSource>());
         WrapAccessChecker();
 
         _services.TryAddEnumerable(

@@ -1,3 +1,4 @@
+using Mirepoix.AccessControl.Policy;
 using Mirepoix.AccessControl.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,6 +62,61 @@ public static class AccessControlServiceCollectionExtensions
 
         list.Add(operation);
         return services;
+    }
+
+    /// <summary>
+    /// Adds <paramref name="key"/> to the singleton context attribute catalog.
+    /// Creates that list when it is missing. A repeated key, compared ordinally, is ignored, including <c>time</c>.
+    /// </summary>
+    /// <param name="services">Application service collection.</param>
+    /// <param name="key">Non-blank context attribute key.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="key"/> is null or blank.</exception>
+    public static IServiceCollection AddAccessControlAttribute(this IServiceCollection services, string key)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        if (key is null || string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentException("Context attribute key must be non-blank.", nameof(key));
+        }
+
+        PublishedEnforcementAttributeList.GetOrAdd(services).Add(key);
+        return services;
+    }
+
+    /// <summary>
+    /// Publishes a context attribute, or rejects subject and resource registration on this host.
+    /// Context delegates to <see cref="AddAccessControlAttribute(IServiceCollection, string)"/>.
+    /// </summary>
+    /// <param name="services">Application service collection.</param>
+    /// <param name="target">Must be <see cref="AttributeTarget.Context"/>.</param>
+    /// <param name="key">Non-blank context attribute key.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is null.</exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="target"/> is subject or resource, or when <paramref name="key"/> is null or blank.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="target"/> is not a known value.</exception>
+    public static IServiceCollection AddAccessControlAttribute(
+        this IServiceCollection services,
+        AttributeTarget target,
+        string key)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        switch (target)
+        {
+            case AttributeTarget.Context:
+                return services.AddAccessControlAttribute(key);
+            case AttributeTarget.Subject:
+            case AttributeTarget.Resource:
+                throw new ArgumentException(
+                    $"Enforcement attribute catalog cannot publish {target.ToString().ToLowerInvariant()} attributes.",
+                    nameof(target));
+            default:
+                throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown attribute target.");
+        }
     }
 }
 

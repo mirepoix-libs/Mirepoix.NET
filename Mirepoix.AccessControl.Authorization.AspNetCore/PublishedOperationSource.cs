@@ -6,8 +6,9 @@ namespace Mirepoix.AccessControl.Authorization.AspNetCore;
 /// <summary>
 /// Builds the enforcement catalog from endpoint metadata plus <see cref="PublishedOperationList"/>.
 /// Each read walks the current <see cref="EndpointDataSource"/> set, so routes mapped after startup are included.
+/// <see cref="AccessControlBuilder"/> also registers this instance as <see cref="IPublishedOperationSource"/>.
 /// </summary>
-public sealed class PublishedOperationSource
+public sealed class PublishedOperationSource : IPublishedOperationSource
 {
     private readonly IEnumerable<EndpointDataSource> _endpoints;
     private readonly PublishedOperationList _registrations;
