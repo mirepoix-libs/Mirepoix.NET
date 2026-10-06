@@ -59,6 +59,7 @@ jobs:
             Mirepoix.AccessControl/Mirepoix.AccessControl.csproj
             Mirepoix.AccessControl.Core/Mirepoix.AccessControl.Core.csproj
             Mirepoix.AccessControl.Engine/Mirepoix.AccessControl.Engine.csproj
+            Mirepoix.AccessControl.Engine.DependencyInjection/Mirepoix.AccessControl.Engine.DependencyInjection.csproj
             Mirepoix.AccessControl.Engine.Client.Http/Mirepoix.AccessControl.Engine.Client.Http.csproj
             Mirepoix.AccessControl.Engine.Server.Http/Mirepoix.AccessControl.Engine.Server.Http.csproj
             Mirepoix.AccessControl.Authorization.AspNetCore/Mirepoix.AccessControl.Authorization.AspNetCore.csproj

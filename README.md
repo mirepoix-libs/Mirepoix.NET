@@ -12,13 +12,14 @@ Public member contracts ship as XML documentation with each package.
 
 ## Packages
 
-These fifteen packages are the ones [`.github/workflows/publish.yml`](.github/workflows/publish.yml) packs and pushes to NuGet.
+These sixteen packages are the ones [`.github/workflows/publish.yml`](.github/workflows/publish.yml) packs and pushes to NuGet.
 
 | Package | Role |
 |---|---|
 | `Mirepoix.AccessControl` | Shared request and decision types: `AuthorizationRequest`, `AccessDecision`, `Subject`, `Resource`, `IAccessChecker` |
 | `Mirepoix.AccessControl.Core` | Policy language and the PIP/PAP seams |
 | `Mirepoix.AccessControl.Engine` | PDP: `Authorizer`, combination strategies, `LocalAccessChecker`, and the in-memory policy source |
+| `Mirepoix.AccessControl.Engine.DependencyInjection` | Hand-roll DI: `AddAccessControlResourceResolver<T>()` |
 | `Mirepoix.AccessControl.Authorization.AspNetCore` | ASP.NET Core PEP |
 | `Mirepoix.AccessControl.Providers` | Shared PIP contract (schema and codecs) |
 | `Mirepoix.AccessControl.Providers.SqlServer` | SqlServer read/hydrate PIP (`Microsoft.Data.SqlClient`) |
