@@ -1,10 +1,11 @@
-using Mirepoix.AccessControl.Policy;
-using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Mirepoix.AccessControl.Policy;
+using Mirepoix.AccessControl.Providers;
+using PolicyModel = Mirepoix.AccessControl.Policy.Policy;
 
 namespace Mirepoix.AccessControl.Authorization.AspNetCore.Tests.TestHost;
 
@@ -49,6 +50,8 @@ public sealed class AccessControlApiFactory : IAsyncLifetime
                     })
             });
 
+        builder.Services.AddSingleton<IResourceHydrator, PassThroughResourceHydrator>();
+
         builder.Services.AddAccessControl(ac => ac.UseMemoryPolicySet(policySet));
 
         _app = builder.Build();
@@ -79,4 +82,10 @@ public sealed class AccessControlApiFactory : IAsyncLifetime
         await _app.StopAsync();
         await _app.DisposeAsync();
     }
+}
+
+sealed class PassThroughResourceHydrator : IResourceHydrator
+{
+    public Task<Resource> HydrateAsync(Resource partial, CancellationToken cancellationToken)
+        => Task.FromResult(partial);
 }
