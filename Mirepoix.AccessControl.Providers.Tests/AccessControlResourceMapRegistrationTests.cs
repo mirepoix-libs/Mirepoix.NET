@@ -14,14 +14,18 @@ public sealed class AccessControlResourceMapRegistrationTests
             .Type("doc")
             .Id(x => x.Id)
             .Attribute(x => x.Status, "status")
-            .Load((id, _) => Task.FromResult<Doc?>(new Doc { Id = id, Status = "ok" })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Doc?>(new Doc { Id = id, Status = "ok" });
+            }));
 
         AccessControlResourceMapRegistration.Apply(services, options.ResourceMapping);
 
         await using var sp = services.BuildServiceProvider();
         await using var scope = sp.CreateAsyncScope();
         var resource = await scope.ServiceProvider.GetRequiredService<IResourceHydrator>()
-            .HydrateAsync(new Resource("doc", "1", new Dictionary<string, object?>()), default);
+            .HydrateAsync(new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()), default);
 
         Assert.Equal("ok", resource.Attributes["status"]);
     }
@@ -35,12 +39,16 @@ public sealed class AccessControlResourceMapRegistrationTests
             .Type("doc")
             .Id(document => document.Id)
             .Owner(document => document.CreatedByUserId)
-            .Load((id, _) => Task.FromResult<Document?>(new Document
+            .Load((key, _) =>
             {
-                Id = id,
-                CreatedByUserId = "user-7",
-                Status = "draft",
-            })));
+                var id = key.GetRequired("id");
+                return Task.FromResult<Document?>(new Document
+                {
+                    Id = id,
+                    CreatedByUserId = "user-7",
+                    Status = "draft",
+                });
+            }));
 
         AccessControlResourceMapRegistration.Apply(services, mapping);
         await using var provider = services.BuildServiceProvider();
@@ -49,11 +57,11 @@ public sealed class AccessControlResourceMapRegistrationTests
         var resource = await scope.ServiceProvider
             .GetRequiredService<IResourceHydrator>()
             .HydrateAsync(
-                new Resource("doc", "42", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("42"), new Dictionary<string, object?>()),
                 CancellationToken.None);
 
         Assert.Equal("doc", resource.Type);
-        Assert.Equal("42", resource.Id);
+        Assert.Equal(ResourceKey.Single("42"), resource.Key);
         Assert.Equal("user-7", resource.Attributes["ownerId"]);
         Assert.Equal("draft", resource.Attributes["Status"]);
         Assert.DoesNotContain(nameof(Document.CreatedByUserId), resource.Attributes);
@@ -109,7 +117,7 @@ public sealed class AccessControlResourceMapRegistrationTests
             () => scope.ServiceProvider
                 .GetRequiredService<IResourceHydrator>()
                 .HydrateAsync(
-                    new Resource("doc", "missing", new Dictionary<string, object?>()),
+                    new Resource("doc", ResourceKey.Single("missing"), new Dictionary<string, object?>()),
                     CancellationToken.None));
     }
 
@@ -122,12 +130,16 @@ public sealed class AccessControlResourceMapRegistrationTests
             .Type("doc")
             .Id(document => document.Id)
             .Attribute(document => document.Status, "state")
-            .Load((id, _) => Task.FromResult<Document?>(new Document
+            .Load((key, _) =>
             {
-                Id = id,
-                Status = "draft",
-                InternalNote = "hidden",
-            })));
+                var id = key.GetRequired("id");
+                return Task.FromResult<Document?>(new Document
+                {
+                    Id = id,
+                    Status = "draft",
+                    InternalNote = "hidden",
+                });
+            }));
 
         AccessControlResourceMapRegistration.Apply(services, mapping);
         await using var provider = services.BuildServiceProvider();
@@ -136,7 +148,7 @@ public sealed class AccessControlResourceMapRegistrationTests
         var resource = await scope.ServiceProvider
             .GetRequiredService<IResourceHydrator>()
             .HydrateAsync(
-                new Resource("doc", "42", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("42"), new Dictionary<string, object?>()),
                 CancellationToken.None);
 
         var attribute = Assert.Single(resource.Attributes);
@@ -154,7 +166,7 @@ public sealed class AccessControlResourceMapRegistrationTests
             .Type("doc")
             .Id(document => document.Id)
             .Attribute(document => document.Status, "status")
-            .Load<DocumentStore>((store, id, ct) => store.FindAsync(id, ct)));
+            .Load<DocumentStore>((store, key, ct) => store.FindAsync(key.GetRequired("id"), ct)));
 
         AccessControlResourceMapRegistration.Apply(services, mapping);
         await using var provider = services.BuildServiceProvider();
@@ -164,7 +176,7 @@ public sealed class AccessControlResourceMapRegistrationTests
         var first = await firstScope.ServiceProvider
             .GetRequiredService<IResourceHydrator>()
             .HydrateAsync(
-                new Resource("doc", "1", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
                 CancellationToken.None);
 
         Assert.Equal("from-store", first.Attributes["status"]);
@@ -175,7 +187,7 @@ public sealed class AccessControlResourceMapRegistrationTests
         await secondScope.ServiceProvider
             .GetRequiredService<IResourceHydrator>()
             .HydrateAsync(
-                new Resource("doc", "2", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("2"), new Dictionary<string, object?>()),
                 CancellationToken.None);
 
         Assert.Equal(1, firstStore.FindCount);
@@ -194,8 +206,9 @@ public sealed class AccessControlResourceMapRegistrationTests
             .Type("doc")
             .Id(document => document.Id)
             .Attribute(document => document.Status, "status")
-            .Load(async (sp, id, ct) =>
+            .Load(async (sp, key, ct) =>
             {
+                var id = key.GetRequired("id");
                 var lookup = sp.GetRequiredService<DocumentLookup>();
                 var store = sp.GetRequiredService<DocumentStore>();
                 var document = await store.FindAsync(id, ct).ConfigureAwait(false);
@@ -211,10 +224,88 @@ public sealed class AccessControlResourceMapRegistrationTests
         var resource = await scope.ServiceProvider
             .GetRequiredService<IResourceHydrator>()
             .HydrateAsync(
-                new Resource("doc", "9", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("9"), new Dictionary<string, object?>()),
                 CancellationToken.None);
 
         Assert.Equal("singleton-status", resource.Attributes["status"]);
+    }
+
+    [Fact]
+    public async Task Apply_Hydrates_CompositeKey()
+    {
+        var services = new ServiceCollection();
+        var options = new TestOptions();
+        options.MapResource<TenantDoc>(m => m
+            .Type("document")
+            .Key("tenantId", x => x.TenantId)
+            .Key("documentId", x => x.DocumentId)
+            .Attribute(x => x.Status, "status")
+            .Load((key, _) =>
+            {
+                Assert.Equal("acme", key.GetRequired("tenantId"));
+                Assert.Equal("doc-1", key.GetRequired("documentId"));
+                return Task.FromResult<TenantDoc?>(new TenantDoc
+                {
+                    TenantId = "acme",
+                    DocumentId = "doc-1",
+                    Status = "ok",
+                });
+            }));
+
+        AccessControlResourceMapRegistration.Apply(services, options.ResourceMapping);
+        await using var sp = services.BuildServiceProvider();
+        await using var scope = sp.CreateAsyncScope();
+
+        var resource = await scope.ServiceProvider.GetRequiredService<IResourceHydrator>()
+            .HydrateAsync(
+                new Resource(
+                    "document",
+                    ResourceKey.From(("tenantId", "acme"), ("documentId", "doc-1")),
+                    new Dictionary<string, object?>()),
+                default);
+
+        Assert.Equal("ok", resource.Attributes["status"]);
+        Assert.Equal(
+            ResourceKey.From(("tenantId", "acme"), ("documentId", "doc-1")),
+            resource.Key);
+    }
+
+    [Fact]
+    public async Task Apply_Missing_KeyPart_Throws()
+    {
+        var services = new ServiceCollection();
+        var mapping = new ResourceMappingOptions();
+        mapping.MapEntity<TenantDoc>(map => map
+            .Type("document")
+            .Key("tenantId", x => x.TenantId)
+            .Key("documentId", x => x.DocumentId)
+            .Load((_, _) => Task.FromResult<TenantDoc?>(new TenantDoc())));
+
+        AccessControlResourceMapRegistration.Apply(services, mapping);
+        await using var sp = services.BuildServiceProvider();
+        await using var scope = sp.CreateAsyncScope();
+
+        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            scope.ServiceProvider.GetRequiredService<IResourceHydrator>()
+                .HydrateAsync(
+                    new Resource("document", ResourceKey.Single("doc-1"), new Dictionary<string, object?>()),
+                    default));
+
+        Assert.Contains("tenantId", ex.Message);
+    }
+
+    [Fact]
+    public void Key_RejectsDuplicatePartName()
+    {
+        var mapping = new ResourceMappingOptions();
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            mapping.MapEntity<TenantDoc>(map => map
+                .Type("document")
+                .Key("tenantId", x => x.TenantId)
+                .Key("tenantId", x => x.DocumentId)
+                .Load((_, _) => Task.FromResult<TenantDoc?>(null))));
+
+        Assert.Contains("tenantId", ex.Message);
     }
 
     private sealed class TestOptions : AccessControlProviderOptions<TestOptions>;
@@ -235,6 +326,15 @@ public sealed class AccessControlResourceMapRegistrationTests
         public string Status { get; init; } = "";
 
         public string InternalNote { get; init; } = "";
+    }
+
+    private sealed class TenantDoc
+    {
+        public string TenantId { get; set; } = "";
+
+        public string DocumentId { get; set; } = "";
+
+        public string Status { get; set; } = "";
     }
 
     private sealed class DocumentLookup(string status)

@@ -85,7 +85,7 @@ public class PackageDrivenIntegrationTests
         var decision = await checker.CheckAsync(
             new AuthorizationRequest(
                 new Subject("user-1", new HashSet<string>(), new Dictionary<string, object?>()),
-                new Resource("doc", "42", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("42"), new Dictionary<string, object?>()),
                 Operation.Parse("doc:edit"),
                 new AccessContext(
                     DateTimeOffset.UtcNow,

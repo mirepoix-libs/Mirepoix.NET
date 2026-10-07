@@ -15,7 +15,11 @@ public sealed class PublishedProviderAttributeSourceTests
             .Attribute(invoice => invoice.Status, "status")
             .Include(invoice => invoice.Title, "name")
             .Owner(invoice => invoice.CreatedByUserId)
-            .Load((id, _) => Task.FromResult<Invoice?>(new Invoice { Id = id })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Invoice?>(new Invoice { Id = id });
+            }));
 
         var list = new PublishedProviderAttributeSource(options).List();
 
@@ -35,7 +39,11 @@ public sealed class PublishedProviderAttributeSourceTests
             .Id(invoice => invoice.Id)
             .Rename(invoice => invoice.Status, "status")
             .Owner(invoice => invoice.CreatedByUserId)
-            .Load((id, _) => Task.FromResult<Invoice?>(new Invoice { Id = id })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Invoice?>(new Invoice { Id = id });
+            }));
 
         var list = new PublishedProviderAttributeSource(options).List();
 
@@ -191,7 +199,11 @@ public sealed class PublishedProviderAttributeSourceTests
             .Type("doc")
             .Id(invoice => invoice.Id)
             .Attribute(invoice => invoice.Status, "status")
-            .Load((id, _) => Task.FromResult<Invoice?>(new Invoice { Id = id })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Invoice?>(new Invoice { Id = id });
+            }));
 
         var list = new PublishedProviderAttributeSource(options).List();
 
@@ -210,7 +222,11 @@ public sealed class PublishedProviderAttributeSourceTests
             .Type("doc")
             .Id(item => item.Id)
             .Attribute(item => item.Time, "time")
-            .Load((id, _) => Task.FromResult<Timed?>(new Timed { Id = id })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Timed?>(new Timed { Id = id });
+            }));
 
         var list = new PublishedProviderAttributeSource(options).List();
 
@@ -244,7 +260,11 @@ public sealed class PublishedProviderAttributeSourceTests
                 .Id(invoice => invoice.Id)
                 .Owner(invoice => invoice.CreatedByUserId)
                 .Attribute(invoice => invoice.Status, "status")
-                .Load((id, _) => Task.FromResult<Invoice?>(new Invoice { Id = id })))
+                .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Invoice?>(new Invoice { Id = id });
+            }))
             .AddAttribute(AttributeTarget.Subject, "dept"));
 
         using var provider = services.BuildServiceProvider();

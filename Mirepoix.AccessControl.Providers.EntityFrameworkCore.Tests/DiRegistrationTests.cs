@@ -123,13 +123,17 @@ public class DiRegistrationTests
                 .Type("doc")
                 .Id(x => x.Id)
                 .Attribute(x => x.Status, "status")
-                .Load((id, _) => Task.FromResult<Doc?>(new Doc { Id = id, Status = "ok" })));
+                .Load((key, _) =>
+                {
+                    var id = key.GetRequired("id");
+                    return Task.FromResult<Doc?>(new Doc { Id = id, Status = "ok" });
+                }));
         });
 
         await using var sp = services.BuildServiceProvider();
         await using var scope = sp.CreateAsyncScope();
         var resource = await scope.ServiceProvider.GetRequiredService<IResourceHydrator>()
-            .HydrateAsync(new Resource("doc", "1", new Dictionary<string, object?>()), CancellationToken.None);
+            .HydrateAsync(new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()), CancellationToken.None);
 
         Assert.Equal("ok", resource.Attributes["status"]);
     }
@@ -146,7 +150,7 @@ public class DiRegistrationTests
         var bundle = await sp.GetRequiredService<IBundleHydrator>().HydrateAsync(
             new AuthorizationRequest(
                 new Subject("alice", new HashSet<string>(), new Dictionary<string, object?>()),
-                new Resource("doc", "1", new Dictionary<string, object?>()),
+                new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
                 Operation.Parse("doc:read"),
                 new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>())),
             CancellationToken.None);
@@ -175,7 +179,7 @@ public class DiRegistrationTests
         var hydrator = root.GetRequiredService<IBundleHydrator>();
         var request = new AuthorizationRequest(
             new Subject("alice", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("document", "1", new Dictionary<string, object?>()),
+            new Resource("document", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("document:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 
@@ -219,9 +223,7 @@ public class DiRegistrationTests
             Resource partial,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(
-                new Resource(
-                    partial.Type,
-                    partial.Id,
+                new Resource(partial.Type, partial.Key,
                     new Dictionary<string, object?> { ["source"] = "domain" }));
     }
 }

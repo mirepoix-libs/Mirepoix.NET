@@ -4,7 +4,7 @@ namespace Mirepoix.AccessControl.Providers;
 
 /// <summary>
 /// Opens a DI scope on each <see cref="HydrateAsync"/> and delegates to the registered
-/// <see cref="IResourceHydrator"/>. When none is registered, an empty type and empty id return the
+/// <see cref="IResourceHydrator"/>. When none is registered, an empty type and empty key return the
 /// partial resource. Any other partial throws.
 /// </summary>
 /// <remarks>
@@ -36,7 +36,7 @@ internal sealed class ScopeFactoryResourceHydrator : IResourceHydrator
     /// <param name="cancellationToken">Cancellation forwarded to the inner hydrator.</param>
     /// <returns>
     /// <paramref name="partial"/> when no <see cref="IResourceHydrator"/> is registered and both
-    /// type and id are empty; otherwise the inner hydrator's result.
+    /// type and key are empty; otherwise the inner hydrator's result.
     /// </returns>
     public async Task<Resource> HydrateAsync(Resource partial, CancellationToken cancellationToken)
     {
@@ -44,11 +44,11 @@ internal sealed class ScopeFactoryResourceHydrator : IResourceHydrator
         var hydrator = scope.ServiceProvider.GetService<IResourceHydrator>();
         if (hydrator is null)
         {
-            if (string.IsNullOrEmpty(partial.Type) && string.IsNullOrEmpty(partial.Id))
+            if (string.IsNullOrEmpty(partial.Type) && partial.Key.IsEmpty)
                 return partial;
 
             if (string.IsNullOrEmpty(partial.Type))
-                throw new InvalidOperationException("A resource id requires a resource type.");
+                throw new InvalidOperationException("A resource key requires a resource type.");
 
             throw new InvalidOperationException(
                 $"No resource resolver is registered for type '{partial.Type}'.");

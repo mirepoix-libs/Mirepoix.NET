@@ -11,7 +11,11 @@ public sealed class AccessControlProviderOptionsTests
         o.MapResource<Doc>(m => m
             .Type("doc")
             .Id(x => x.Id)
-            .Load((id, _) => Task.FromResult<Doc?>(new Doc { Id = id })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Doc?>(new Doc { Id = id });
+            }));
 
         Assert.True(o.ResourceMapping.HasMaps);
         Assert.True(o.ResourceHydratorImplied);
@@ -41,12 +45,20 @@ public sealed class AccessControlProviderOptionsTests
         o.MapResource<Doc>(m => m
             .Type("doc")
             .Id(x => x.Id)
-            .Load((id, _) => Task.FromResult<Doc?>(new Doc { Id = id })));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<Doc?>(new Doc { Id = id });
+            }));
 
         var ex = Assert.Throws<InvalidOperationException>(() => o.MapResource<OtherDoc>(m => m
             .Type("doc")
             .Id(x => x.Id)
-            .Load((id, _) => Task.FromResult<OtherDoc?>(new OtherDoc { Id = id }))));
+            .Load((key, _) =>
+            {
+                var id = key.GetRequired("id");
+                return Task.FromResult<OtherDoc?>(new OtherDoc { Id = id });
+            })));
 
         Assert.Contains("Duplicate resource type value", ex.Message, StringComparison.Ordinal);
     }

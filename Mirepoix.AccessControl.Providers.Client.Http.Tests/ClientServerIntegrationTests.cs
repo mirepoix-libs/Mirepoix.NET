@@ -44,7 +44,7 @@ public sealed class ClientServerIntegrationTests
             await hydrator.HydrateAsync(
                 new AuthorizationRequest(
                     new Subject("missing", new HashSet<string>(), new Dictionary<string, object?>()),
-                    new Resource("document", "1", new Dictionary<string, object?>()),
+                    new Resource("document", ResourceKey.Single("1"), new Dictionary<string, object?>()),
                     Operation.Parse("document:read"),
                     new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>())),
                 CancellationToken.None));
@@ -58,10 +58,27 @@ public sealed class ClientServerIntegrationTests
         var hydrator = new HttpResourceHydrator(http);
 
         var result = await hydrator.HydrateAsync(
-            new Resource("document", "1", new Dictionary<string, object?>()),
+            new Resource("document", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             CancellationToken.None);
 
         Assert.Equal("alice", result.Attributes["ownerId"]);
+    }
+
+    [Fact]
+    public async Task Client_RoundTrips_CompositeResourceKey_Through_Server_Hydrator()
+    {
+        await using var server = await StartServerAsync();
+        using var http = server.GetTestClient();
+        var hydrator = new HttpResourceHydrator(http);
+
+        var expectedKey = ResourceKey.From(("tenantId", "acme"), ("documentId", "1"));
+        var result = await hydrator.HydrateAsync(
+            new Resource("document", expectedKey, new Dictionary<string, object?>()),
+            CancellationToken.None);
+
+        Assert.Equal("document", result.Type);
+        Assert.Equal(expectedKey, result.Key);
+        Assert.Equal("ok", result.Attributes["status"]);
     }
 
     private static async Task<WebApplication> StartServerAsync()
@@ -117,11 +134,22 @@ public sealed class ClientServerIntegrationTests
     {
         public Task<Resource> HydrateAsync(
             Resource partial,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(
-                new Resource(
-                    partial.Type,
-                    partial.Id,
+            CancellationToken cancellationToken = default)
+        {
+            if (partial.Key.TryGet("tenantId", out _))
+            {
+                var key = ResourceKey.From(
+                    ("tenantId", partial.Key.GetRequired("tenantId")),
+                    ("documentId", partial.Key.GetRequired("documentId")));
+                return Task.FromResult(new Resource(
+                    "document",
+                    key,
+                    new Dictionary<string, object?> { ["status"] = "ok" }));
+            }
+
+            return Task.FromResult(
+                new Resource(partial.Type, partial.Key,
                     new Dictionary<string, object?> { ["ownerId"] = "alice" }));
+        }
     }
 }
