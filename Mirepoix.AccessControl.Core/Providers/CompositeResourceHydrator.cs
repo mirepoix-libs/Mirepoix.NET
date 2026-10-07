@@ -34,11 +34,11 @@ public sealed class CompositeResourceHydrator : IResourceHydrator
     /// <inheritdoc />
     public Task<Resource> HydrateAsync(Resource partial, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(partial.Type) && string.IsNullOrEmpty(partial.Id))
+        if (string.IsNullOrEmpty(partial.Type) && partial.Key.IsEmpty)
             return Task.FromResult(partial);
 
         if (string.IsNullOrEmpty(partial.Type))
-            throw new InvalidOperationException("A resource id requires a resource type.");
+            throw new InvalidOperationException("A resource key requires a resource type.");
 
         if (!_registrations.TryGetValue(partial.Type, out var registration))
             throw new InvalidOperationException(

@@ -34,9 +34,18 @@ public sealed class MappedResourceResolver<T> : IResourceResolver<T>
         Resource partial,
         CancellationToken cancellationToken)
     {
-        var entity = await _map.Load(_services, partial.Id, cancellationToken).ConfigureAwait(false);
+        foreach (var keyMember in _map.KeyMembers)
+        {
+            if (!partial.Key.TryGet(keyMember.PartName, out _))
+            {
+                throw new KeyNotFoundException(
+                    $"Resource '{_map.Type}:{partial.Key.Canonical()}' is missing key part '{keyMember.PartName}'.");
+            }
+        }
+
+        var entity = await _map.Load(_services, partial.Key, cancellationToken).ConfigureAwait(false);
         if (entity is null)
-            throw new KeyNotFoundException($"Resource '{_map.Type}:{partial.Id}' was not found.");
+            throw new KeyNotFoundException($"Resource '{_map.Type}:{partial.Key.Canonical()}' was not found.");
 
         return ResourceFactory.Create(entity, _map);
     }

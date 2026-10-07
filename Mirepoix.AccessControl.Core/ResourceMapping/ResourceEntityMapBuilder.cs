@@ -12,9 +12,9 @@ public sealed class ResourceEntityMapBuilder<T>
     where T : class
 {
     private string? _type;
-    private PropertyInfo? _idMember;
+    private readonly List<(string Name, PropertyInfo Member)> _keyMembers = new();
     private PropertyInfo? _ownerMember;
-    private Func<IServiceProvider, string, CancellationToken, Task<T?>>? _load;
+    private Func<IServiceProvider, ResourceKey, CancellationToken, Task<T?>>? _load;
     private readonly HashSet<string> _excluded = new(StringComparer.Ordinal);
     private readonly HashSet<string> _includeOnly = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _renames = new(StringComparer.Ordinal);
@@ -28,12 +28,23 @@ public sealed class ResourceEntityMapBuilder<T>
         return this;
     }
 
-    /// <summary>Sets the required resource id property.</summary>
-    public ResourceEntityMapBuilder<T> Id(Expression<Func<T, object?>> property)
+    /// <summary>Adds a key part from a property. Duplicate part names throw.</summary>
+    public ResourceEntityMapBuilder<T> Key(string name, Expression<Func<T, object?>> property)
     {
-        _idMember = GetProperty(property);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (_keyMembers.Any(k => string.Equals(k.Name, name, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                $"Resource map for '{typeof(T).Name}' already declares key part '{name}'.");
+        }
+
+        _keyMembers.Add((name, GetProperty(property)));
         return this;
     }
+
+    /// <summary>Sets the required resource id property (sugar for <c>Key("id", …)</c>).</summary>
+    public ResourceEntityMapBuilder<T> Id(Expression<Func<T, object?>> property) =>
+        Key("id", property);
 
     /// <summary>Sets the optional property exported only as <c>ownerId</c>.</summary>
     public ResourceEntityMapBuilder<T> Owner(Expression<Func<T, object?>> property)
@@ -93,10 +104,10 @@ public sealed class ResourceEntityMapBuilder<T>
     /// Sets a loader that does not use DI (tests / static data).
     /// </summary>
     public ResourceEntityMapBuilder<T> Load(
-        Func<string, CancellationToken, Task<T?>> load)
+        Func<ResourceKey, CancellationToken, Task<T?>> load)
     {
         ArgumentNullException.ThrowIfNull(load);
-        _load = (_, id, cancellationToken) => load(id, cancellationToken);
+        _load = (_, key, cancellationToken) => load(key, cancellationToken);
         return this;
     }
 
@@ -105,12 +116,12 @@ public sealed class ResourceEntityMapBuilder<T>
     /// </summary>
     /// <typeparam name="TService">Service type registered in DI (any lifetime).</typeparam>
     public ResourceEntityMapBuilder<T> Load<TService>(
-        Func<TService, string, CancellationToken, Task<T?>> load)
+        Func<TService, ResourceKey, CancellationToken, Task<T?>> load)
         where TService : notnull
     {
         ArgumentNullException.ThrowIfNull(load);
-        _load = (serviceProvider, id, cancellationToken) =>
-            load(serviceProvider.GetRequiredService<TService>(), id, cancellationToken);
+        _load = (serviceProvider, key, cancellationToken) =>
+            load(serviceProvider.GetRequiredService<TService>(), key, cancellationToken);
         return this;
     }
 
@@ -118,7 +129,7 @@ public sealed class ResourceEntityMapBuilder<T>
     /// Sets a loader that receives the current DI scope (multiple services / advanced cases).
     /// </summary>
     public ResourceEntityMapBuilder<T> Load(
-        Func<IServiceProvider, string, CancellationToken, Task<T?>> load)
+        Func<IServiceProvider, ResourceKey, CancellationToken, Task<T?>> load)
     {
         ArgumentNullException.ThrowIfNull(load);
         _load = load;
@@ -127,25 +138,25 @@ public sealed class ResourceEntityMapBuilder<T>
 
     /// <summary>Builds and validates the immutable resource map.</summary>
     /// <exception cref="InvalidOperationException">
-    /// Thrown when Type, Id, or Load is missing.
+    /// Thrown when Type, Id/Key, or Load is missing.
     /// </exception>
     public ResourceEntityMap Build()
     {
         if (string.IsNullOrWhiteSpace(_type))
             throw new InvalidOperationException($"Resource map for '{typeof(T).Name}' requires Type(...).");
-        if (_idMember is null)
-            throw new InvalidOperationException($"Resource map for '{typeof(T).Name}' requires Id(...).");
+        if (_keyMembers.Count == 0)
+            throw new InvalidOperationException($"Resource map for '{typeof(T).Name}' requires Id(...) or Key(...).");
         if (_load is null)
             throw new InvalidOperationException($"Resource map for '{typeof(T).Name}' requires Load(...).");
 
-        var idMember = _idMember;
+        var keyMemberNames = new HashSet<string>(_keyMembers.Select(k => k.Member.Name), StringComparer.Ordinal);
         var ownerMember = _ownerMember;
         var attributeMembers = typeof(T)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(property =>
                 property.CanRead &&
                 property.GetIndexParameters().Length == 0 &&
-                property.Name != idMember.Name &&
+                !keyMemberNames.Contains(property.Name) &&
                 property.Name != ownerMember?.Name &&
                 !_excluded.Contains(property.Name) &&
                 (!_includeOnlyMode || _includeOnly.Contains(property.Name)))
@@ -158,16 +169,20 @@ public sealed class ResourceEntityMapBuilder<T>
             })
             .ToArray();
 
+        var keyMembers = _keyMembers
+            .Select(k => new MappedResourceKeyMember { Member = k.Member, PartName = k.Name })
+            .ToArray();
+
         var load = _load;
         return new ResourceEntityMap
         {
             ClrType = typeof(T),
             Type = _type,
-            IdMember = idMember,
+            KeyMembers = keyMembers,
             OwnerMember = ownerMember,
             AttributeMembers = attributeMembers,
-            Load = async (serviceProvider, id, cancellationToken) =>
-                await load(serviceProvider, id, cancellationToken).ConfigureAwait(false),
+            Load = async (serviceProvider, key, cancellationToken) =>
+                await load(serviceProvider, key, cancellationToken).ConfigureAwait(false),
         };
     }
 

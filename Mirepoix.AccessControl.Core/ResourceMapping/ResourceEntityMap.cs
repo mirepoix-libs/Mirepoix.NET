@@ -13,8 +13,8 @@ public sealed class ResourceEntityMap
     /// <summary>Gets the access-control resource type.</summary>
     public required string Type { get; init; }
 
-    /// <summary>Gets the property that supplies <see cref="Resource.Id"/>.</summary>
-    public required PropertyInfo IdMember { get; init; }
+    /// <summary>Gets key members in registration order.</summary>
+    public required IReadOnlyList<MappedResourceKeyMember> KeyMembers { get; init; }
 
     /// <summary>Gets the optional property exported as <see cref="ResourceAttributeNames.OwnerId"/>.</summary>
     public PropertyInfo? OwnerMember { get; init; }
@@ -25,9 +25,21 @@ public sealed class ResourceEntityMap
     /// <summary>
     /// Gets the domain entity loader. Receives the current DI scope so
     /// <c>Load&lt;TService&gt;</c> / <see cref="IServiceProvider"/> overloads can resolve services.
-    /// Plain <c>Load(Func&lt;string, …&gt;)</c> ignores the provider.
+    /// Plain <c>Load(Func&lt;ResourceKey, …&gt;)</c> ignores the provider.
     /// </summary>
-    public required Func<IServiceProvider, string, CancellationToken, Task<object?>> Load { get; init; }
+    public required Func<IServiceProvider, ResourceKey, CancellationToken, Task<object?>> Load { get; init; }
+}
+
+/// <summary>
+/// Describes one domain property that supplies a <see cref="ResourceKey"/> part.
+/// </summary>
+public sealed class MappedResourceKeyMember
+{
+    /// <summary>Gets the source property.</summary>
+    public required PropertyInfo Member { get; init; }
+
+    /// <summary>Gets the key part name.</summary>
+    public required string PartName { get; init; }
 }
 
 /// <summary>

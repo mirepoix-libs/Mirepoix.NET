@@ -20,9 +20,17 @@ public static class ResourceFactory
                 nameof(entity));
         }
 
-        var id = CoerceId(map.IdMember.GetValue(entity))
-            ?? throw new InvalidOperationException(
-                $"Resource id on '{map.ClrType.Name}.{map.IdMember.Name}' was null.");
+        var parts = new (string name, string value)[map.KeyMembers.Count];
+        for (var i = 0; i < map.KeyMembers.Count; i++)
+        {
+            var keyMember = map.KeyMembers[i];
+            var value = CoerceId(keyMember.Member.GetValue(entity))
+                ?? throw new InvalidOperationException(
+                    $"Resource key part '{keyMember.PartName}' on '{map.ClrType.Name}.{keyMember.Member.Name}' was null.");
+            parts[i] = (keyMember.PartName, value);
+        }
+
+        var key = ResourceKey.From(parts);
 
         var attributes = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var attribute in map.AttributeMembers)
@@ -31,7 +39,7 @@ public static class ResourceFactory
         if (map.OwnerMember is not null)
             attributes[ResourceAttributeNames.OwnerId] = map.OwnerMember.GetValue(entity);
 
-        return new Resource(map.Type, id, attributes);
+        return new Resource(map.Type, key, attributes);
     }
 
     private static string? CoerceId(object? value) =>
