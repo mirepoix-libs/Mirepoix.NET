@@ -127,7 +127,9 @@ public static class AccessControlEndpointExtensions
 {
     /// <summary>
     /// Applies the shared AccessControl authorization policy (handler PEP).
-    /// Pair with <see cref="WithAccessOperation{TBuilder}"/> (and optionally <see cref="WithAccessResource{TBuilder}"/>).
+    /// Pair with <see cref="WithAccessOperation{TBuilder}"/> (and optionally
+    /// <see cref="WithAccessResource{TBuilder}(TBuilder, string, string)"/> /
+    /// <see cref="WithAccessResource{TBuilder}(TBuilder, string, string[])"/>).
     /// </summary>
     /// <typeparam name="TBuilder">Endpoint convention builder type.</typeparam>
     /// <param name="builder">Endpoint being configured.</param>
@@ -166,5 +168,22 @@ public static class AccessControlEndpointExtensions
         where TBuilder : IEndpointConventionBuilder
     {
         return builder.WithMetadata(new AccessResourceAttribute(resourceType, idRouteKey));
+    }
+
+    /// <summary>
+    /// Adds <see cref="AccessResourceAttribute"/> metadata that builds a composite <see cref="ResourceKey"/> from route values.
+    /// </summary>
+    /// <typeparam name="TBuilder">Endpoint convention builder type.</typeparam>
+    /// <param name="builder">Endpoint being configured.</param>
+    /// <param name="resourceType">Resource type segment.</param>
+    /// <param name="keyBindings">Non-empty route value names used as key parts, in order.</param>
+    /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+    public static TBuilder WithAccessResource<TBuilder>(
+        this TBuilder builder,
+        string resourceType,
+        string[] keyBindings)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        return builder.WithMetadata(new AccessResourceAttribute(resourceType, keyBindings));
     }
 }

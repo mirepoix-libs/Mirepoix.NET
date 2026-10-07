@@ -68,7 +68,7 @@ public class AccessControlServiceCollectionExtensionsTests
         var seed = new DefaultClaimsPrincipalMapper().CreateSeed(http);
         return new AuthorizationRequest(
             seed.Subject,
-            new Resource(string.Empty, string.Empty, new Dictionary<string, object?>()),
+            new Resource(string.Empty, ResourceKey.Empty, new Dictionary<string, object?>()),
             Operation.Parse(operation),
             seed.Context);
     }

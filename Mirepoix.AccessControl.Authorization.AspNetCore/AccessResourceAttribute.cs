@@ -17,6 +17,27 @@ public sealed class AccessResourceAttribute : Attribute
     {
         ResourceType = resourceType ?? throw new ArgumentNullException(nameof(resourceType));
         IdRouteKey = idRouteKey ?? throw new ArgumentNullException(nameof(idRouteKey));
+        KeyBindings = null;
+    }
+
+    /// <summary>
+    /// Creates metadata for <paramref name="resourceType"/> with ordered composite key bindings from route values.
+    /// </summary>
+    /// <param name="resourceType">Resource type segment (e.g. <c>document</c>). Must not be null.</param>
+    /// <param name="keyBindings">Non-empty route value names used as <see cref="ResourceKey"/> parts, in order.</param>
+    /// <exception cref="ArgumentNullException">Thrown when either argument is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="keyBindings"/> is empty or any name is blank.</exception>
+    public AccessResourceAttribute(string resourceType, string[] keyBindings)
+    {
+        ResourceType = resourceType ?? throw new ArgumentNullException(nameof(resourceType));
+        ArgumentNullException.ThrowIfNull(keyBindings);
+        if (keyBindings.Length == 0)
+            throw new ArgumentException("KeyBindings must be non-empty.", nameof(keyBindings));
+        foreach (var name in keyBindings)
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        IdRouteKey = "id"; // ignored when KeyBindings set
+        KeyBindings = keyBindings;
     }
 
     /// <summary>
@@ -26,6 +47,13 @@ public sealed class AccessResourceAttribute : Attribute
 
     /// <summary>
     /// Names the route value keyed for the resource id (looked up on <c>HttpContext.Request.RouteValues</c>).
+    /// Ignored when <see cref="KeyBindings"/> is non-null.
     /// </summary>
     public string IdRouteKey { get; }
+
+    /// <summary>
+    /// Ordered route value names used to build a composite <see cref="ResourceKey"/>.
+    /// When null or empty, the PEP uses <see cref="IdRouteKey"/> / <see cref="ResourceKey.Single"/>.
+    /// </summary>
+    public IReadOnlyList<string>? KeyBindings { get; }
 }

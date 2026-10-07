@@ -111,9 +111,70 @@ public class AccessCheckPipelineTests
 
         Assert.NotNull(captured);
         Assert.Equal("doc", captured!.Resource.Type);
-        Assert.Equal("42", captured.Resource.Id);
+        Assert.Equal(ResourceKey.Single("42"), captured.Resource.Key);
         Assert.Equal("doc:edit", captured.Operation.Value);
         Assert.Equal("u1", captured.Subject.Id);
+    }
+
+    [Fact]
+    public async Task Evaluate_whitespace_route_id_yields_empty_resource_key()
+    {
+        AuthorizationRequest? captured = null;
+        var http = AuthenticatedContext("u1", "EDITOR", operation: "doc:edit", resourceType: "doc", routeId: "   ");
+        var checker = new CapturingChecker(d =>
+        {
+            captured = d;
+            return new AccessDecision(
+                AuthorizationResult.Allow,
+                Array.Empty<PolicyHit>(),
+                DecisionStatus.Success,
+                "v1");
+        });
+
+        await AccessCheckPipeline.EvaluateAsync(
+            http,
+            new DefaultClaimsPrincipalMapper(),
+            checker,
+            CancellationToken.None);
+
+        Assert.NotNull(captured);
+        Assert.Equal(ResourceKey.Empty, captured!.Resource.Key);
+    }
+
+    [Fact]
+    public async Task Evaluate_builds_composite_resource_from_key_bindings()
+    {
+        AuthorizationRequest? captured = null;
+        var http = AuthenticatedContext("u1", "EDITOR", operation: "document:read");
+        http.Request.RouteValues["tenantId"] = "acme";
+        http.Request.RouteValues["documentId"] = "doc-1";
+
+        var endpoint = new Endpoint(
+            _ => Task.CompletedTask,
+            new EndpointMetadataCollection(
+                new AccessOperationAttribute("document:read"),
+                new AccessResourceAttribute("document", new[] { "tenantId", "documentId" })),
+            "test");
+        http.Features.Set<IEndpointFeature>(new EndpointFeature(endpoint));
+
+        await AccessCheckPipeline.EvaluateAsync(
+            http,
+            new DefaultClaimsPrincipalMapper(),
+            new CapturingChecker(d =>
+            {
+                captured = d;
+                return new AccessDecision(
+                    AuthorizationResult.Allow,
+                    Array.Empty<PolicyHit>(),
+                    DecisionStatus.Success,
+                    "v1");
+            }),
+            CancellationToken.None);
+
+        Assert.NotNull(captured);
+        Assert.Equal(
+            ResourceKey.From(("tenantId", "acme"), ("documentId", "doc-1")),
+            captured!.Resource.Key);
     }
 
     private static DefaultHttpContext AuthenticatedContext(

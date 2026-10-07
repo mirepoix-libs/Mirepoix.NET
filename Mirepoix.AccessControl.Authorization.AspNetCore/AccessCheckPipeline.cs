@@ -74,18 +74,44 @@ internal static class AccessCheckPipeline
 
         var resourceAttr = endpoint!.Metadata.GetMetadata<AccessResourceAttribute>();
         var resourceType = resourceAttr?.ResourceType ?? string.Empty;
-        var resourceId = string.Empty;
-        if (resourceAttr is not null
-            && httpContext.Request.RouteValues.TryGetValue(resourceAttr.IdRouteKey, out var routeId)
-            && routeId is not null)
+
+        ResourceKey resourceKey;
+        if (resourceAttr?.KeyBindings is { Count: > 0 } bindings)
         {
-            resourceId = Convert.ToString(routeId) ?? string.Empty;
+            var parts = new List<(string, string)>(bindings.Count);
+            foreach (var name in bindings)
+            {
+                var value = string.Empty;
+                if (httpContext.Request.RouteValues.TryGetValue(name, out var raw) && raw is not null)
+                    value = Convert.ToString(raw) ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(value))
+                    parts.Add((name, value));
+            }
+
+            resourceKey = parts.Count == 0 ? ResourceKey.Empty : ResourceKey.From(parts.ToArray());
+        }
+        else
+        {
+            var resourceId = string.Empty;
+            if (resourceAttr is not null
+                && httpContext.Request.RouteValues.TryGetValue(resourceAttr.IdRouteKey, out var routeId)
+                && routeId is not null)
+            {
+                resourceId = Convert.ToString(routeId) ?? string.Empty;
+            }
+
+            resourceKey = string.IsNullOrWhiteSpace(resourceId)
+                ? ResourceKey.Empty
+                : ResourceKey.Single(resourceId);
         }
 
         var seed = mapper.CreateSeed(httpContext);
         var request = new AuthorizationRequest(
             seed.Subject,
-            new Resource(resourceType, resourceId, new Dictionary<string, object?>()),
+            new Resource(
+                resourceType,
+                resourceKey,
+                new Dictionary<string, object?>()),
             operation,
             seed.Context);
 
