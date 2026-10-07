@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Mirepoix.AccessControl.Protocol.Http;
 
@@ -33,7 +34,7 @@ public sealed class AuthorizationRequestDto
     public AuthorizationRequest ToDomain() =>
         new(
             Subject?.ToDomain() ?? new Subject(string.Empty, new HashSet<string>(), new Dictionary<string, object?>()),
-            Resource?.ToDomain() ?? new Resource(string.Empty, string.Empty, new Dictionary<string, object?>()),
+            Resource?.ToDomain() ?? new Resource(string.Empty, ResourceKey.Empty, new Dictionary<string, object?>()),
             Mirepoix.AccessControl.Operation.Parse(Operation ?? throw new ArgumentException("Operation is required.", nameof(Operation))),
             Context?.ToDomain() ?? new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 }
@@ -73,7 +74,11 @@ public sealed class ResourceDto
     /// <summary>Resource type name.</summary>
     public string? Type { get; set; }
 
-    /// <summary>Resource instance id.</summary>
+    /// <summary>Preferred identity map (part name → value).</summary>
+    public Dictionary<string, string>? Key { get; set; }
+
+    /// <summary>Legacy single id. Read on deserialize when <see cref="Key"/> is null; never written by <see cref="FromDomain"/>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Id { get; set; }
 
     /// <summary>Attribute bag serialized as JSON elements.</summary>
@@ -84,16 +89,29 @@ public sealed class ResourceDto
         new()
         {
             Type = resource.Type,
-            Id = resource.Id,
+            Key = resource.Key.IsEmpty
+                ? null
+                : resource.Key.Parts.ToDictionary(p => p.Name, p => p.Value, StringComparer.Ordinal),
+            Id = null,
             Attributes = AccessControlHttpJson.ToJsonElements(resource.Attributes),
         };
 
     /// <summary>Maps this wire DTO to a domain resource.</summary>
-    public Resource ToDomain() =>
-        new(
+    public Resource ToDomain()
+    {
+        ResourceKey key;
+        if (Key is not null)
+            key = ResourceKey.From(Key);
+        else if (!string.IsNullOrWhiteSpace(Id))
+            key = ResourceKey.Single(Id);
+        else
+            key = ResourceKey.Empty;
+
+        return new Resource(
             Type ?? string.Empty,
-            Id ?? string.Empty,
+            key,
             AccessControlHttpJson.ToAttributeDictionary(Attributes));
+    }
 }
 
 /// <summary>Wire representation of an <see cref="AccessContext"/>.</summary>

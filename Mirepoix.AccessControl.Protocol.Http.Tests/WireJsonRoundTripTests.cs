@@ -11,7 +11,7 @@ public sealed class WireJsonRoundTripTests
     {
         var domain = new AuthorizationRequest(
             new Subject("alice", new HashSet<string> { "editor" }, new Dictionary<string, object?> { ["dept"] = "eng" }),
-            new Resource("document", "doc-1", new Dictionary<string, object?>()),
+            new Resource("document", ResourceKey.Single("doc-1"), new Dictionary<string, object?>()),
             Operation.Parse("document:read"),
             new AccessContext(
                 new DateTimeOffset(2026, 9, 22, 12, 0, 0, TimeSpan.Zero),
@@ -25,6 +25,7 @@ public sealed class WireJsonRoundTripTests
         Assert.Equal("alice", back.Subject.Id);
         Assert.Contains("editor", back.Subject.Roles);
         Assert.Equal("eng", back.Subject.Attributes["dept"]);
+        Assert.Equal(ResourceKey.Single("doc-1"), back.Resource.Key);
         Assert.Equal("document:read", back.Operation.Value);
     }
 
