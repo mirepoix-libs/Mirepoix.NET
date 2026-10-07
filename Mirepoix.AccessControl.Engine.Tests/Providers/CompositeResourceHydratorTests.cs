@@ -15,12 +15,12 @@ public class CompositeResourceHydratorTests
     }
 
     [Fact]
-    public async Task Empty_type_and_id_passthrough()
+    public async Task Empty_type_and_key_passthrough()
     {
         var hydrator = new CompositeResourceHydrator(
             new EmptyServiceProvider(),
             Array.Empty<ResourceResolverRegistration>());
-        var partial = Resource("", "");
+        var partial = new Resource("", ResourceKey.Empty, new Dictionary<string, object?>());
 
         var result = await hydrator.HydrateAsync(partial, CancellationToken.None);
 
@@ -28,14 +28,18 @@ public class CompositeResourceHydratorTests
     }
 
     [Fact]
-    public async Task Empty_type_nonempty_id_throws()
+    public async Task Empty_type_nonempty_key_throws_key_message()
     {
         var hydrator = new CompositeResourceHydrator(
             new EmptyServiceProvider(),
             Array.Empty<ResourceResolverRegistration>());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => hydrator.HydrateAsync(Resource("", "1"), CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            hydrator.HydrateAsync(
+                new Resource("", ResourceKey.Single("1"), new Dictionary<string, object?>()),
+                CancellationToken.None));
+
+        Assert.Equal("A resource key requires a resource type.", ex.Message);
     }
 
     [Fact]
@@ -114,7 +118,7 @@ public class CompositeResourceHydratorTests
         params (string Name, object? Value)[] attributes) =>
         new(
             type,
-            id,
+            string.IsNullOrEmpty(id) ? ResourceKey.Empty : ResourceKey.Single(id),
             attributes.ToDictionary(attribute => attribute.Name, attribute => attribute.Value));
 
     private sealed class EmptyServiceProvider : IServiceProvider

@@ -87,10 +87,55 @@ public sealed class HttpAccessCheckerTests
         Assert.Equal(DecisionStatus.Success, decision.Status);
     }
 
+    [Fact]
+    public async Task CheckAsync_PostsCompositeResourceKey_AndMapsDecision()
+    {
+        var handler = new AsyncStubHandler(async request =>
+        {
+            var json = await request.Content!.ReadAsStringAsync();
+            using var document = JsonDocument.Parse(json);
+            var resource = document.RootElement.GetProperty("resource");
+            var key = resource.GetProperty("key");
+            Assert.Equal("document", resource.GetProperty("type").GetString());
+            Assert.Equal("acme", key.GetProperty("tenantId").GetString());
+            Assert.Equal("1", key.GetProperty("documentId").GetString());
+            Assert.False(resource.TryGetProperty("id", out _));
+
+            var decision = AccessDecisionDto.FromDomain(new AccessDecision(
+                AuthorizationResult.Allow,
+                Array.Empty<PolicyHit>(),
+                DecisionStatus.Success,
+                "v1"));
+
+            return JsonResponse(decision);
+        });
+
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+        var checker = new HttpAccessChecker(http);
+
+        var result = await checker.CheckAsync(CompositeSampleRequest(), CancellationToken.None);
+
+        Assert.Equal(AuthorizationResult.Allow, result.Result);
+        Assert.Equal(DecisionStatus.Success, result.Status);
+    }
+
     private static AuthorizationRequest SampleRequest() =>
         new(
             new Subject("alice", new HashSet<string> { "editor" }, new Dictionary<string, object?> { ["dept"] = "eng" }),
-            new Resource("document", "doc-1", new Dictionary<string, object?>()),
+            new Resource("document", ResourceKey.Single("doc-1"), new Dictionary<string, object?>()),
+            Operation.Parse("document:read"),
+            new AccessContext(
+                new DateTimeOffset(2026, 9, 22, 12, 0, 0, TimeSpan.Zero),
+                new Dictionary<string, object?> { ["sub"] = "alice" },
+                new Dictionary<string, object?>()));
+
+    private static AuthorizationRequest CompositeSampleRequest() =>
+        new(
+            new Subject("alice", new HashSet<string> { "editor" }, new Dictionary<string, object?> { ["dept"] = "eng" }),
+            new Resource(
+                "document",
+                ResourceKey.From(("tenantId", "acme"), ("documentId", "1")),
+                new Dictionary<string, object?>()),
             Operation.Parse("document:read"),
             new AccessContext(
                 new DateTimeOffset(2026, 9, 22, 12, 0, 0, TimeSpan.Zero),
@@ -122,5 +167,17 @@ public sealed class HttpAccessCheckerTests
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(_handler(request));
+    }
+
+    private sealed class AsyncStubHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, Task<HttpResponseMessage>> _handler;
+
+        public AsyncStubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) => _handler = handler;
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            _handler(request);
     }
 }

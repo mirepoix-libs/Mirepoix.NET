@@ -11,16 +11,17 @@ internal sealed class TestResourceHydrator(
     {
         ArgumentNullException.ThrowIfNull(partial);
 
-        if (!attributes.TryGetValue((partial.Type, partial.Id), out var hydratedAttributes))
+        var id = partial.Key.TryGet("id", out var partId) ? partId : partial.Key.Canonical();
+        if (!attributes.TryGetValue((partial.Type, id), out var hydratedAttributes))
         {
             throw new KeyNotFoundException(
-                $"Resource '{partial.Type}/{partial.Id}' was not found.");
+                $"Resource '{partial.Type}/{id}' was not found.");
         }
 
         return Task.FromResult(
             new Resource(
                 partial.Type,
-                partial.Id,
+                partial.Key,
                 new Dictionary<string, object?>(hydratedAttributes)));
     }
 }

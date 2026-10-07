@@ -13,7 +13,7 @@ public class CompositeBundleHydratorTests
         var hydrator = new CompositeBundleHydrator(subjects, null, null);
         var request = new AuthorizationRequest(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
         var bundle = await hydrator.HydrateAsync(request, CancellationToken.None);
@@ -26,7 +26,7 @@ public class CompositeBundleHydratorTests
         var hydrator = new CompositeBundleHydrator();
         var request = Request(
             new Subject("u1", new HashSet<string> { "VIEWER" }, new Dictionary<string, object?> { ["dept"] = "ops" }),
-            new Resource("doc", "1", new Dictionary<string, object?> { ["owner"] = "u1" }),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?> { ["owner"] = "u1" }),
             new AccessContext(null, new Dictionary<string, object?> { ["aud"] = "app" }, new Dictionary<string, object?>()));
 
         var bundle = await hydrator.HydrateAsync(request, CancellationToken.None);
@@ -47,13 +47,13 @@ public class CompositeBundleHydratorTests
         var hydrator = new CompositeBundleHydrator(null, resources, null);
         var request = Request(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()));
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()));
 
         var bundle = await hydrator.HydrateAsync(request, CancellationToken.None);
 
         Assert.Equal("u1", bundle.Resource.Attributes["owner"]);
         Assert.Equal("doc", bundle.Resource.Type);
-        Assert.Equal("1", bundle.Resource.Id);
+        Assert.Equal(ResourceKey.Single("1"), bundle.Resource.Key);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class CompositeBundleHydratorTests
         var hydrator = new CompositeBundleHydrator(null, null, context);
         var request = Request(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             new AccessContext(
                 DateTimeOffset.Parse("2026-09-10T00:00:00Z"),
                 new Dictionary<string, object?> { ["aud"] = "app" },
@@ -101,7 +101,7 @@ public class CompositeBundleHydratorTests
         AccessContext? context = null) =>
         new(
             subject ?? new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            resource ?? new Resource("doc", "1", new Dictionary<string, object?>()),
+            resource ?? new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             context ?? new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 }

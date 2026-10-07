@@ -27,7 +27,7 @@ public sealed class AccessControlResourceServiceCollectionExtensionsTests
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => hydrator.HydrateAsync(
-                new Resource("invoice", "42", new Dictionary<string, object?>()),
+                new Resource("invoice", ResourceKey.Single("42"), new Dictionary<string, object?>()),
                 CancellationToken.None));
 
         Assert.Contains("invoice", exception.Message);
@@ -45,11 +45,11 @@ public sealed class AccessControlResourceServiceCollectionExtensionsTests
         var typed = firstScope.ServiceProvider.GetRequiredService<IResourceResolver<Document>>();
         var hydrator = firstScope.ServiceProvider.GetRequiredService<IResourceHydrator>();
         var hydrated = await hydrator.HydrateAsync(
-            new Resource("document", "42", new Dictionary<string, object?>()),
+            new Resource("document", ResourceKey.Single("42"), new Dictionary<string, object?>()),
             CancellationToken.None);
 
         Assert.Same(concrete, typed);
-        Assert.Equal("42", hydrated.Id);
+        Assert.Equal(ResourceKey.Single("42"), hydrated.Key);
         Assert.Equal("owned", hydrated.Attributes["status"]);
 
         await using var secondScope = provider.CreateAsyncScope();

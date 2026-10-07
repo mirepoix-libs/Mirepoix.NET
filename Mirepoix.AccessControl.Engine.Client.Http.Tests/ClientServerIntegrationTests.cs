@@ -57,6 +57,33 @@ public sealed class ClientServerIntegrationTests
         Assert.Equal("v1", result.PolicySetVersion);
     }
 
+    [Fact]
+    public async Task Client_RoundTrips_CompositeResourceKey_Through_Server_LocalChecker()
+    {
+        AuthorizationRequest? captured = null;
+        await using var server = await StartServerAsync(new LocalAccessChecker(
+            new MemoryPolicySource(new PolicySet("v1", new[]
+            {
+                new PolicyModel("p1", AuthorizationResult.Allow, "admins", new IAtom[]
+                {
+                    new RoleMembershipAtom(new[] { "ADMIN" }),
+                }),
+            })),
+            new CapturingPassThroughHydrator(request => captured = request)));
+
+        using var http = server.GetTestClient();
+        var checker = new HttpAccessChecker(http);
+
+        var expectedKey = ResourceKey.From(("tenantId", "acme"), ("documentId", "1"));
+        var result = await checker.CheckAsync(CompositeSampleRequest(expectedKey), CancellationToken.None);
+
+        Assert.Equal(AuthorizationResult.Allow, result.Result);
+        Assert.Equal(DecisionStatus.Success, result.Status);
+        Assert.NotNull(captured);
+        Assert.Equal("document", captured!.Resource.Type);
+        Assert.Equal(expectedKey, captured.Resource.Key);
+    }
+
     private static async Task<WebApplication> StartServerAsync(IAccessChecker checker)
     {
         var builder = WebApplication.CreateBuilder();
@@ -75,8 +102,15 @@ public sealed class ClientServerIntegrationTests
     private static AuthorizationRequest SampleRequest() =>
         new(
             new Subject("u1", new HashSet<string> { "ADMIN" }, new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:read"),
+            new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
+
+    private static AuthorizationRequest CompositeSampleRequest(ResourceKey key) =>
+        new(
+            new Subject("u1", new HashSet<string> { "ADMIN" }, new Dictionary<string, object?>()),
+            new Resource("document", key, new Dictionary<string, object?>()),
+            Operation.Parse("document:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 
     private static void UseCallerPolicy(WebApplicationBuilder builder)
@@ -111,6 +145,25 @@ public sealed class ClientServerIntegrationTests
                 request.Resource,
                 request.Operation,
                 request.Context));
+    }
+
+    private sealed class CapturingPassThroughHydrator : IBundleHydrator
+    {
+        private readonly Action<AuthorizationRequest> _capture;
+
+        public CapturingPassThroughHydrator(Action<AuthorizationRequest> capture) => _capture = capture;
+
+        public Task<AuthorizationBundle> HydrateAsync(
+            AuthorizationRequest request,
+            CancellationToken cancellationToken)
+        {
+            _capture(request);
+            return Task.FromResult(new AuthorizationBundle(
+                request.Subject,
+                request.Resource,
+                request.Operation,
+                request.Context));
+        }
     }
 
     private sealed class ThrowingHydrator : IBundleHydrator

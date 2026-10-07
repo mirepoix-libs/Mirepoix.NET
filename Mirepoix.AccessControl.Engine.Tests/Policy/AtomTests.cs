@@ -9,7 +9,7 @@ public class AtomTests
         var atom = new RoleMembershipAtom(new[] { "EDITOR", "ADMIN" });
         var bundle = new AuthorizationBundle(
             new Subject("u1", new HashSet<string> { "EDITOR" }, new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
         Assert.True(atom.IsSatisfied(bundle));
@@ -502,7 +502,7 @@ public class AtomTests
     {
         return new AuthorizationBundle(
             new Subject(subjectId, new HashSet<string>(roles ?? Array.Empty<string>()), subjectAttrs ?? new Dictionary<string, object?>()),
-            new Resource("doc", "1", resourceAttrs ?? new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), resourceAttrs ?? new Dictionary<string, object?>()),
             Operation.Parse(operation),
             new AccessContext(time, claims ?? new Dictionary<string, object?>(), values ?? new Dictionary<string, object?>()));
     }

@@ -220,14 +220,14 @@ public class PolicySerializersTests
     private static AuthorizationBundle TimeBundle(DateTimeOffset time) =>
         new(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             new AccessContext(time, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 
     private static AuthorizationBundle LevelBundle(object level) =>
         new(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?> { ["level"] = level }),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 }

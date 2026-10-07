@@ -92,7 +92,7 @@ public class LocalAccessCheckerTests
         });
         var request = new AuthorizationRequest(
             new Subject("u1", new HashSet<string> { "USER" }, new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
         var checker = new LocalAccessChecker(new MemoryPolicySource(set), new PassThroughHydrator());
@@ -119,7 +119,7 @@ public class LocalAccessCheckerTests
         });
         var request = new AuthorizationRequest(
             new Subject("u1", new HashSet<string> { "USER" }, new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
         var checker = new LocalAccessChecker(
@@ -158,7 +158,7 @@ public class LocalAccessCheckerTests
     private static AuthorizationRequest MinimalRequest() =>
         new(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 

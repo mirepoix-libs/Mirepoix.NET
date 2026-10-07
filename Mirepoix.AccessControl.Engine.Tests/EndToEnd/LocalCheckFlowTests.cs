@@ -26,7 +26,7 @@ public class LocalCheckFlowTests
         var (_, _, checker) = WireSeededEditorDraft();
         var request = new AuthorizationRequest(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "published", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("published"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             EmptyContext());
 
@@ -117,7 +117,7 @@ public class LocalCheckFlowTests
     private static AuthorizationRequest EditDoc1() =>
         new(
             new Subject("u1", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("doc:edit"),
             EmptyContext());
 

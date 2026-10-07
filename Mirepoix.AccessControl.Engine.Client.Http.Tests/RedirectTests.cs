@@ -32,7 +32,7 @@ public sealed class RedirectTests
     private static AuthorizationRequest Sample() =>
         new(
             new Subject("alice", new HashSet<string>(), new Dictionary<string, object?>()),
-            new Resource("document", "1", new Dictionary<string, object?>()),
+            new Resource("document", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse("document:read"),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
 }

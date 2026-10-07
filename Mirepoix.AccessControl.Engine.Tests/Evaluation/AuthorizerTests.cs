@@ -141,7 +141,7 @@ public class AuthorizerTests
     {
         return new AuthorizationBundle(
             new Subject("u1", new HashSet<string>(roles ?? Array.Empty<string>()), new Dictionary<string, object?>()),
-            new Resource("doc", "1", new Dictionary<string, object?>()),
+            new Resource("doc", ResourceKey.Single("1"), new Dictionary<string, object?>()),
             Operation.Parse(operation),
             new AccessContext(null, new Dictionary<string, object?>(), new Dictionary<string, object?>()));
     }
