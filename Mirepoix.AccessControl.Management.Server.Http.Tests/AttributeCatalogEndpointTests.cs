@@ -369,7 +369,9 @@ public sealed class AttributeCatalogEndpointTests
         {
             Operation = request.Operation.Value;
             ResourceType = request.Resource.Type;
-            ResourceId = request.Resource.Id;
+            ResourceId = request.Resource.Key.TryGet("id", out var id)
+                ? id
+                : request.Resource.Key.Canonical();
             return Task.FromResult(new AccessDecision(
                 AuthorizationResult.Deny,
                 [],

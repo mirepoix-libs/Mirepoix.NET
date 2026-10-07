@@ -40,7 +40,10 @@ internal static class ManagementAccessFilter
         var decision = await checker.CheckAsync(
             new AuthorizationRequest(
                 subject,
-                new Resource(access.ResourceType, resourceId, new Dictionary<string, object?>()),
+                new Resource(
+                    access.ResourceType,
+                    string.IsNullOrWhiteSpace(resourceId) ? ResourceKey.Empty : ResourceKey.Single(resourceId),
+                    new Dictionary<string, object?>()),
                 Operation.Parse(access.Operation),
                 accessContext),
             http.RequestAborted).ConfigureAwait(false);
